@@ -1,0 +1,51 @@
+# --- Python / FastAPI ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+build/
+dist/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
+
+# --- Environment & secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Data / local volumes ---
+*.sqlite3
+*.db
+postgres_data/
+redis_data/
+uploads/
+media/
+
+# --- Logs & debug ---
+*.log
+logs/
+
+# --- OS / editor junk ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# --- Generated artifacts (rebuild with contracts:sync) ---
+# contracts/openapi.json is COMMITTED (it is the law) — do not ignore it
+contracts/types.ts
