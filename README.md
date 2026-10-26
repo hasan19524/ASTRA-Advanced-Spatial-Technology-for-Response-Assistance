@@ -34,11 +34,13 @@ code/                  ← this repository
 ├─ api/                FastAPI backend        (Day 1+)
 ├─ web/                Next.js frontend       (Day 1+)
 ├─ contracts/          API contract (openapi.json → generated TS types)
+├─ docs/               Shared team docs — architecture decisions are LOCKED here
 ├─ seed/               Demo world seed script
 └─ scripts/            dev/demo helpers
 ```
 
-> Planning documents live outside this repo by design.
+> 📌 Start here: **[docs/architecture.md](docs/architecture.md)** — the locked architecture
+> both engineers build against. Planning notes live outside this repo by design.
 
 ## Getting started (after Day 1 scaffold)
 
