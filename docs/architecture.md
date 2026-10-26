@@ -20,7 +20,7 @@ No Django, no stack swaps, no new frameworks without discussion.
 
 ---
 
-## 2. Decisions (AD-1 … AD-12)
+## 2. Decisions (AD-1 … AD-18)
 
 | # | Decision | Choice | Consequences |
 |---|---|---|---|
@@ -36,6 +36,33 @@ No Django, no stack swaps, no new frameworks without discussion.
 | AD-10 | **WebSocket auth** | **`?token=<jwt>` on handshake**, verified before accept | Simpler client code. Known tradeoff: tokens appear in server logs — acceptable for the prototype, noted honestly. |
 | AD-11 | **Next.js rendering** | **Client-heavy** — dashboards/map/assistant are `"use client"`; server components only for layout shells | Zustand and WS never run on the server → no RSC hydration bugs. |
 | AD-12 | **Tooling** | `ruff` (lint+format) for Python · `pytest` auth contract tests · eslint (present) | `ruff check` before every push. Tests in `api/tests/`. |
+
+### Domain decisions (AD-13 … AD-18)
+
+| # | Decision | Choice | Consequences |
+|---|---|---|---|
+| AD-13 | **Demo geography** | **Delhi NCR** | OSM extract centered on Delhi (28.6139°N, 77.2090°E) incl. Noida/Gurugram/Ghaziabad. Seed incidents, routes, alerts, and map viewport are NCR-scoped. |
+| AD-14 | **Departments (7)** | Police · Fire & Rescue · Medical/EMS · Transport & Roads · Disaster Management · Electricity/Utilities · Water & Drainage | Seed: 1 Department Head + 2 response team members per department (≈15 accounts) + admin + officers + citizens. Dashboards and assignment UI cover all 7. |
+| AD-15 | **Incident categories (8)** | Fire · Accident · Flood/Waterlogging · Structural collapse · Medical emergency · Crime/Safety · Utility outage · Hazard/Other | Report form = category picker; map pin styling + department suggestion per category. Paired with the **sensitivity rule** below. |
+| AD-16 | **Voice languages** | **All Indian languages Gnani supports** — no hardcoding | Backend passes BCP-47 codes through to STT/TTS untouched; frontend exposes a language selector on voice features; seed carries multilingual samples. UI chrome stays English (no i18n framework in scope). |
+| AD-17 | **API prefix** | **`/api/v1/...`** | Business routers mounted under `/api/v1`; `/health` stays bare; OpenAPI remains the contract. |
+| AD-18 | **Poll eligibility** | **Every public UNVERIFIED incident** | Poll opens automatically with public publication — closes the "eligible" gap vision.md never defined. Restricted incidents aren't public → never polled. |
+
+### Sensitivity rule (AD-15 addendum — closes a vision.md gap)
+
+> *"Not all data should be directly updated to the map — some are sensitive."*
+
+Every report carries `sensitivity: PUBLIC | RESTRICTED`.
+
+- **PUBLIC** → normal Maybe-True flow: public map, poll opens, UNVERIFIED badge.
+- **RESTRICTED** → **withheld from the public map entirely**; visible only to authorized roles
+  (Admin / Verification Officer / relevant department). Still assessed, verified, and responded
+  to normally — response is never blocked by secrecy. No public poll (it isn't public).
+- Default per category lives in seed config (e.g. Crime/Safety likely RESTRICTED); an authorized
+  user can override a report's sensitivity, and every change is audit-logged.
+
+This makes vision.md's promise enforceable instead of aspirational: *citizens see public-safe
+information; sensitive operational detail is restricted.*
 
 **Deferred:** the Gnani API-key spike was postponed; voice integration still targets Day 7. It may
 change the *implementation* behind `GnaniClient` / `AssessmentBackend` — never these decisions.
