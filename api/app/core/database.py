@@ -8,7 +8,7 @@ from functools import lru_cache
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 
-from app.config import settings
+from app.core.config import settings
 
 
 @lru_cache

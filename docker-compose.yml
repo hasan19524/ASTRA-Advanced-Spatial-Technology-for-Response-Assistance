@@ -1,0 +1,55 @@
+# ASTRA — AD-6: docker runs the platform's services (postgres, redis, api).
+# The frontend (web/) runs locally with hot reload.
+# `name:` pins the compose project so containers/volumes/networks are always
+# astra-* regardless of what this folder happens to be called.
+name: astra
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: astra
+    ports:
+      # 5433: host port 5432 is already taken by a local PostgreSQL service on this machine
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d astra"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ./api
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/astra
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-ast-ra-dev-secret-change-in-prod}
+      ENVIRONMENT: development
+    volumes:
+      - ./api:/app
+      # keep the Windows-built venv out of the Linux container's way
+      - /app/.venv
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:

@@ -12,10 +12,18 @@ class Settings(BaseSettings):
     environment: str = "development"
     debug: bool = True
 
-    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/astra"
+    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5433/astra"
     redis_url: str = "redis://localhost:6379/0"
 
     cors_origins: list[str] = ["http://localhost:3000"]
+
+    # --- Auth (AD-2: short-lived access + long-lived refresh) ---
+    jwt_secret: str = (
+        "dev-only-change-me"  # override via JWT_SECRET env in real deploys
+    )
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days: int = 7
 
 
 settings = Settings()
