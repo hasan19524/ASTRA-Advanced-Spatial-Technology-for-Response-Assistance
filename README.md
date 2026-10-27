@@ -31,6 +31,7 @@ Citizen · Central Admin · Department Head · Response Team Member · ASTRA Ver
 
 ```
 code/                  ← this repository
+├─ AGENTS.md           Team rules — read first (your AI agent loads it automatically)
 ├─ api/                FastAPI backend        (Day 1+)
 ├─ web/                Next.js frontend       (Day 1+)
 ├─ contracts/          API contract (openapi.json → generated TS types)
@@ -41,6 +42,19 @@ code/                  ← this repository
 
 > 📌 Start here: **[docs/architecture.md](docs/architecture.md)** — the locked architecture
 > both engineers build against. Planning notes live outside this repo by design.
+
+## Daily workflow & team rules
+
+Full standing rules: **[AGENTS.md](AGENTS.md)** (loaded automatically by both devs' AI
+agents). The two that matter every day:
+
+1. **Session start →** `git pull origin main` before doing anything.
+2. **Session end →** `git add -A && git commit && git push origin main`.
+
+Plus: quality gates must be green before any push — `ruff check app tests`, `pytest`,
+`npm run build`, and `powershell -File scripts\verify-auth.ps1` (expect `EXIT=0`).
+Every day is logged in [docs/daily/](docs/daily/) — each dev writes their own section
+with exact verification commands.
 
 ## Getting started (after Day 1 scaffold)
 

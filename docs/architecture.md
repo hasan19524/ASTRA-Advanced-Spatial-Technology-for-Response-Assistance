@@ -3,6 +3,8 @@
 > **This file is the shared, authoritative record of architecture decisions for everyone on the team.**
 > Decided Day 1 (27 Oct 2026). Nothing here changes without an explicit discussion —
 > new ideas go to the Parking Lot in [`contracts/requests.md`](../contracts/requests.md), never into code.
+> Day-to-day workflow rules (pull at session start / push at session end, quality gates) live in
+> [`AGENTS.md`](../AGENTS.md) — same source for both devs.
 
 ---
 
