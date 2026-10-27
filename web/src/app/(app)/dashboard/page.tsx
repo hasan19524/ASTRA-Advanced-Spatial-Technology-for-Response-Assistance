@@ -18,18 +18,26 @@ import { useIncidents } from "@/stores/incidents";
 import { mockActivity, mockStats, mockTasks, mockTeams } from "@/lib/mocks/fixtures";
 import { ROLE_LABELS, type Role } from "@/lib/constants";
 
-const NOW = new Date();
-const DATE_STR = NOW.toLocaleDateString("en-IN", {
-  weekday: "short",
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-});
-
 export default function DashboardPage() {
   const { user, can } = useAuthSession();
   const { items, load, loading, error } = useIncidents();
   const [tick, setTick] = useState(0);
+
+  // client-only timestamps (new Date() at module scope breaks prerender)
+  const dateStr = useMemo(
+    () =>
+      new Date().toLocaleDateString("en-IN", {
+        weekday: "short",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }),
+    [],
+  );
+  // recompute every `tick` (30s interval below) so "updated …" stays fresh
+  const updated = tick
+    ? new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
+    : new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 
   useEffect(() => {
     void load();
@@ -44,11 +52,11 @@ export default function DashboardPage() {
     <div>
       <PageHeader
         title={dashboardTitle(role)}
-        subtitle={`Overview of incidents and response across Delhi NCR · updated ${new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`}
+        subtitle={`Overview of incidents and response across Delhi NCR · updated ${updated}`}
         actions={
           <>
             <span className="hidden text-[11px] text-[var(--muted)] sm:block">
-              {DATE_STR}
+              {dateStr}
             </span>
             {can("report.create") && (
               <Link href="/report">

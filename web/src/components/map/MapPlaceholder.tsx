@@ -3,8 +3,6 @@
  * MapPlaceholder — dark NCR map surface with pin dots (Leaflet lands Day 6).
  * Renders real mock incident positions so the screen never looks broken.
  */
-"use client";
-
 import { mockIncidents } from "@/lib/mocks/fixtures";
 import { SEVERITY_TONE } from "@/lib/constants";
 

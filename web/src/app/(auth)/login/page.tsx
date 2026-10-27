@@ -5,7 +5,7 @@
  * accounts (admin@/dephead@/team@/officer@/citizen@ astra.dev) and fall back
  * to a local session if the backend is down.
  */
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthSession } from "@/hooks/useAuth";
@@ -38,10 +38,13 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // already signed in → go to dashboard
-  if (hydrated && isAuthenticated) {
-    router.replace("/dashboard");
-  }
+  // already signed in → go to dashboard (MUST be in useEffect — calling
+  // router during render fights the router and can bounce navigation)
+  useEffect(() => {
+    if (hydrated && isAuthenticated) {
+      router.replace("/dashboard");
+    }
+  }, [hydrated, isAuthenticated, router]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
