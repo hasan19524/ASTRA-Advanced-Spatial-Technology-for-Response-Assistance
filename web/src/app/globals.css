@@ -1,26 +1,129 @@
 @import "tailwindcss";
 
+/* ============================================================
+   ASTRA design tokens (1.1) — dark command-center theme
+   Source: refrence/refrencedesign.png
+   Rule: components use these tokens / Tailwind utilities only —
+   never hard-coded hex.
+   ============================================================ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* surfaces (navy) */
+  --background: #0b1120;
+  --surface: #0f172a;
+  --surface-2: #16213e;
+  --surface-3: #1e293b;
+  --border: #1e293b;
+  --border-strong: #334155;
+
+  /* text */
+  --foreground: #f8fafc;
+  --muted: #94a3b8;
+  --subtle: #64748b;
+
+  /* brand (AD: deep blue) */
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-soft: rgba(59, 130, 246, 0.15);
+  --primary-ring: rgba(59, 130, 246, 0.4);
+
+  /* status colours — LOCKED (task 1.1):
+     UNVERIFIED amber · VERIFIED green · DEFINITELY_FALSE grey · CLOSED slate */
+  --status-unverified: #f59e0b;
+  --status-unverified-fg: #fef3c7;
+  --status-unverified-bg: rgba(245, 158, 11, 0.15);
+
+  --status-verified: #22c55e;
+  --status-verified-fg: #dcfce7;
+  --status-verified-bg: rgba(34, 197, 94, 0.15);
+
+  --status-false: #9ca3af;
+  --status-false-fg: #e5e7eb;
+  --status-false-bg: rgba(156, 163, 175, 0.15);
+
+  --status-closed: #64748b;
+  --status-closed-fg: #e2e8f0;
+  --status-closed-bg: rgba(100, 116, 139, 0.2);
+
+  /* severity scale */
+  --severity-critical: #ef4444;
+  --severity-high: #f97316;
+  --severity-major: #f97316;
+  --severity-moderate: #f59e0b;
+  --severity-minor: #22c55e;
+
+  /* feedback */
+  --danger: #ef4444;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --info: #3b82f6;
+
+  /* shape */
+  --radius: 0.75rem;
+  --radius-sm: 0.5rem;
+  --radius-lg: 1rem;
+
+  /* layout */
+  --sidebar-w: 15rem;
+  --topbar-h: 3.5rem;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-color: var(--border);
+}
+
+html {
+  color-scheme: dark;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
+
+/* thin scrollbars for the command-center feel */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+::selection {
+  background: var(--primary-ring);
+}
+
+/* status badge tone helpers (used by StatusBadge) */
+.tone-unverified { color: var(--status-unverified-fg); background: var(--status-unverified-bg); }
+.tone-verified   { color: var(--status-verified-fg);   background: var(--status-verified-bg); }
+.tone-false      { color: var(--status-false-fg);      background: var(--status-false-bg); }
+.tone-closed     { color: var(--status-closed-fg);     background: var(--status-closed-bg); }
+.tone-critical   { color: #fee2e2; background: rgba(239, 68, 68, 0.15); }
+.tone-high       { color: #ffedd5; background: rgba(249, 115, 22, 0.15); }
+.tone-moderate   { color: #fef3c7; background: rgba(245, 158, 11, 0.15); }
+.tone-minor      { color: #dcfce7; background: rgba(34, 197, 94, 0.15); }
+.tone-info       { color: #dbeafe; background: rgba(59, 130, 246, 0.15); }
+.tone-neutral    { color: #e2e8f0; background: rgba(100, 116, 139, 0.2); }
