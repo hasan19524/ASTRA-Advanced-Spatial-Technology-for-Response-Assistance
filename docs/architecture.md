@@ -63,6 +63,11 @@ Every report carries `sensitivity: PUBLIC | RESTRICTED`.
 - Default per category lives in seed config (e.g. Crime/Safety likely RESTRICTED); an authorized
   user can override a report's sensitivity, and every change is audit-logged.
 
+**Implementation note (Day 2):** axis purity (§3) is never overwritten — a RESTRICTED report
+*keeps* `visibility=PUBLIC_UNVERIFIED`. The public map query is
+`visibility = 'PUBLIC_UNVERIFIED' AND sensitivity = 'PUBLIC'`, so restriction is enforced at
+query time, not by mutating another axis. Seed ships 2 RESTRICTED incidents this way.
+
 This makes vision.md's promise enforceable instead of aspirational: *citizens see public-safe
 information; sensitive operational detail is restricted.*
 

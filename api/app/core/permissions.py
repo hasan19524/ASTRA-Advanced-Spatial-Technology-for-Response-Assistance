@@ -28,6 +28,7 @@ P = {
     "incident.view_restricted": "View sensitivity=RESTRICTED reports",
     # department head
     "department.view_own": "View own department's incidents/resources",
+    "task.view": "View a response task's details (scoped to own department)",
     "task.assign": "Assign response teams to tasks",
     "progress.update": "Report progress to Central Admin",
     # response team
@@ -65,6 +66,7 @@ ROLE_PERMISSIONS: dict[Role, set[str]] = {
     Role.DEPARTMENT_HEAD: CITIZEN_PERMS
     | {
         "department.view_own",
+        "task.view",
         "task.assign",
         "progress.update",
         "map.view_operational",
@@ -72,6 +74,7 @@ ROLE_PERMISSIONS: dict[Role, set[str]] = {
     },
     Role.RESPONSE_TEAM: CITIZEN_PERMS
     | {
+        "task.view",
         "task.update",
         "assignment.view",
         "map.view_operational",
@@ -81,6 +84,7 @@ ROLE_PERMISSIONS: dict[Role, set[str]] = {
         "incident.verify",  # admin may view verification, officers still own the action
         "incident.view_restricted",
         "department.view_own",
+        "task.view",
         "task.assign",
         "progress.update",
         "incident.coordinate",

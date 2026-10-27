@@ -5,9 +5,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.audit import AuditMiddleware
 from app.core.config import settings
 from app.core.database import dispose
-from app.routers import auth
+from app.routers import auth, tasks
 
 
 @asynccontextmanager
@@ -33,7 +34,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Every mutating request → one `audit_logs` row (append-only, AD-9 / vision.md §4).
+# Added last = runs first (outermost), so it also observes auth/validation errors.
+app.add_middleware(AuditMiddleware)
+
 app.include_router(auth.router, prefix="/api/v1")
+app.include_router(tasks.router, prefix="/api/v1")
 
 
 @app.get("/health")
