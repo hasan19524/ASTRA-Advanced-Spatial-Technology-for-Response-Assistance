@@ -27,21 +27,24 @@
    Never end a working session with unpushed commits. The teammate's next session starts
    by pulling — if you don't push, they can't see your work.
 
-**Task assignment flow:** the lead (Hasan) pulls, writes/updates today's plan in
-`docs/daily/<today>.md`, pushes — then both devs pull and each works **their own section**
-of that file. When finishing: pull first (teammate may have pushed), then push again.
+**Task assignment flow:** the lead (Hasan) pulls, writes today's task files in
+`docs/tasks/<name>/<today>.md`, pushes — then both devs pull and each works **their own
+folder**. When finishing: pull first (teammate may have pushed), write your worklog in
+`docs/daily/<name>/<today>.md`, then push again.
 
 - The repo is this folder (nested git repo); `Planning/` one level up stays local forever
   and can never be pushed.
 - Local `.env` files are gitignored — never commit secrets. Real keys go in `.env` only.
 - If `git push` is rejected, `git pull --rebase origin main`, resolve, push again.
 
-## 📅 Daily work log
+## 📅 Tasks & daily work log
 
-Every day gets one file: `docs/daily/YYYY-MM-DD.md` with separate sections for
-**Hasan (Backend/AI)** and **Lubna (Frontend/UI-UX)**. Each section states *what* was
-done and *how to verify it* (exact commands + file paths), so anyone can re-run it.
-Write your own section; never edit the teammate's.
+- **`docs/tasks/<name>/<date>.md`** — the task list for that date. The lead (Hasan) writes
+  these and pushes; you pull and work **your own folder**, ticking boxes. Newest date =
+  today.
+- **`docs/daily/<name>/<date>.md`** — your worklog: *what* you did and *how to verify it*
+  (exact commands + file paths). Write your own file at the end of the day; never edit
+  the teammate's.
 
 ## 🏗️ Build rules
 
@@ -61,7 +64,9 @@ Write your own section; never edit the teammate's.
 | What | Where |
 |---|---|
 | Architecture decisions | `docs/architecture.md` |
-| Today's / tomorrow's tasks | `docs/daily/YYYY-MM-DD.md` |
+| My tasks for today | `docs/tasks/<my-name>/<today>.md` |
+| My worklog for today | `docs/daily/<my-name>/<today>.md` |
+| Tasks/worklog format | `docs/daily/README.md` |
 | Real-world research + data/keys | `docs/research-existing-apps.md` |
 | API endpoint contract | `contracts/requests.md` |
 | Backend (FastAPI) | `api/app/{core,routers,services,models,schemas}` |

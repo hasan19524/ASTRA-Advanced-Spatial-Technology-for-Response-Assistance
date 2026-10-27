@@ -1,50 +1,52 @@
-# Daily Worklog
+# Daily Worklog & Tasks — how the docs are organised
 
-**One file per day, named with its date.** Anyone — Hasan, Lubna, or a judge reading the repo —
-can open a date and see exactly what was built, how, and by whom.
+Two questions, two folders — **never mix them**:
 
-## 📌 Day index — start here
-
-| Day | Date | File | Status |
-|---|---|---|---|
-| 1 | 2026-10-27 | [`2026-10-27.md`](2026-10-27.md) | ✅ complete (Hasan) — auth proven, architecture locked |
-| 2 | 2026-10-28 | [`2026-10-28.md`](2026-10-28.md) | 🔶 **TODAY'S PLAN — Hasan: Day 2 backend · Lubna: Day 1 + Day 2 frontend** |
-
-**Newest file = today's task list.** Pull first, open it, work your own section.
-
-## File naming
+| Folder | Question | Who writes |
+|---|---|---|
+| [`docs/tasks/<name>/<date>.md`](../tasks/) | *What should I do today?* | Hasan (lead) assigns |
+| [`docs/daily/<name>/<date>.md`](.) | *What did I actually do, and how do I verify it?* | each dev, their own file |
 
 ```
-daily/
-├─ README.md            ← this file (the format)
-├─ 2026-10-27.md        ← Day 1: what happened on 27 Oct 2026
-├─ 2026-10-28.md        ← Day 2: plan + what happened
-└─ ...
+docs/
+├─ tasks/                      ← assignments ("what is my task today")
+│  ├─ README.md
+│  ├─ hasan/
+│  │  ├─ 2026-10-27.md         Day 1  ✅ done
+│  │  └─ 2026-10-28.md         Day 2  ← today's tasks
+│  └─ lubna/
+│     ├─ 2026-10-27.md         missed → folded into the 28th
+│     └─ 2026-10-28.md         Day 1+2 combined ← her first session
+├─ daily/                      ← worklogs ("what happened")
+│  ├─ README.md                ← this file
+│  ├─ hasan/
+│  │  ├─ 2026-10-27.md         Day 1  ✅ written
+│  │  └─ 2026-10-28.md         Day 2  ← filled as Hasan works
+│  └─ lubna/
+│     └─ 2026-10-28.md         BLANK  ← she fills it after doing the tasks
+├─ architecture.md             ← locked decisions (AD-1…18)
+└─ research-existing-apps.md   ← real-world precedents + data/keys
 ```
 
-Format: `YYYY-MM-DD.md` (ISO date, sorts chronologically, zero ambiguity).
+## 📌 Current day
 
-## File format (copy this every day)
+**Day 2 — 2026-10-28:**
+
+- Hasan's tasks → [`tasks/hasan/2026-10-28.md`](../tasks/hasan/2026-10-28.md)
+- Lubna's tasks (Day 1+2) → [`tasks/lubna/2026-10-28.md`](../tasks/lubna/2026-10-28.md)
+
+**Newest date = today.** Pull first, open your own folder.
+
+## Daily file format (worklogs)
 
 ```markdown
-# Day N — <date> · <focus of the day>
-
-## Hasan (Backend / AI)
+# Worklog — Day N · <date> · <Name> (<role>)
 ### Done
-- **<what>** — how it was built, key files, commands to reproduce/verify
+- <what> — how it was built + exact command/path to verify it
 ### In progress
 ### Blockers
-
-## Lubna (Frontend / UI/UX)
-### Done
-### In progress
-### Blockers
-
 ## Decisions made today
-- Only if they change/extend locked decisions → also update docs/architecture.md
-
-## Plan for tomorrow
-- Or: "see daily/YYYY-MM-DD.md" if tomorrow's file already exists
+- only if they change locked decisions → also update docs/architecture.md
 ```
 
 ## Rules
@@ -52,14 +54,14 @@ Format: `YYYY-MM-DD.md` (ISO date, sorts chronologically, zero ambiguity).
 1. **Write it the same day**, before you sleep. 10 honest bullets beat a perfect essay later.
 2. **"How" matters as much as "what"** — include the command, file path, or endpoint that
    proves it works, so the other person can verify without asking.
-3. Nobody overwrites another person's section. You write yours, they write theirs.
-4. If a day's file doesn't exist yet, that work hasn't been logged — check `git log`.
+3. Nobody overwrites another person's file. You write yours, they write theirs.
+4. Tasks are assigned only by the lead — if you finish early, pull again; the next task
+   file may already be waiting.
 5. Anything that changes locked architecture goes in `docs/architecture.md` **and** is
    mentioned in that day's file.
 6. **Daily git rhythm (mandatory, both devs):** start every work session with
    `git pull origin main` *before* touching anything, and end it with
    `git add -A && git commit && git push origin main`. Never work on a stale checkout,
-   never end a session with unpushed commits — the other person's session begins by
-   pulling what you pushed.
-7. All standing team rules (git rhythm, quality gates, doc conventions) live in
-   `AGENTS.md` at the repo root — read it first; your AI agent loads it automatically.
+   never end a session with unpushed commits.
+7. All standing team rules live in `AGENTS.md` at the repo root — read it first; your
+   AI agent loads it automatically.
