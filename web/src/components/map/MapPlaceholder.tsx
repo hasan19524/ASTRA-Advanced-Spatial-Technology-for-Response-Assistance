@@ -1,10 +1,9 @@
 "use client";
 /**
  * MapPlaceholder — dark NCR map surface with pin dots (Leaflet lands Day 6).
- * Renders real mock incident positions so the screen never looks broken.
+ * Renders real incident positions so the screen never looks broken.
  */
-import { mockIncidents } from "@/lib/mocks/fixtures";
-import { SEVERITY_TONE } from "@/lib/constants";
+import type { IncidentOut } from "@/api/types";
 
 const SEV_COLOR: Record<string, string> = {
   Critical: "#ef4444",
@@ -25,12 +24,12 @@ function project(lat: number, lng: number) {
 }
 
 export function MapPlaceholder({
-  incidents = mockIncidents.filter((i) => i.visibility === "PUBLIC_UNVERIFIED"),
+  incidents = [],
   onSelect,
   selectedId,
   className = "",
 }: {
-  incidents?: typeof mockIncidents;
+  incidents?: IncidentOut[];
   onSelect?: (id: string) => void;
   selectedId?: string | null;
   className?: string;
@@ -91,14 +90,15 @@ export function MapPlaceholder({
 
           {/* incident pins */}
           {incidents.map((i) => {
-            const { left, top } = project(i.lat, i.lng);
-            const color = SEV_COLOR[i.severity] ?? SEV_COLOR.Minor;
+            if (i.latitude == null || i.longitude == null) return null;
+            const { left, top } = project(i.latitude, i.longitude);
+            const color = SEV_COLOR[i.assessment_status === "MAYBE_TRUE" ? "Major" : "Minor"] ?? SEV_COLOR.Minor;
             const selected = selectedId === i.id;
             return (
               <button
                 key={i.id}
                 onClick={() => onSelect?.(i.id)}
-                title={`${i.id} · ${i.category} · ${i.location}`}
+                title={`${i.id} · ${i.category} · ${i.location_text ?? i.region ?? "—"}`}
                 className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/80 shadow-lg transition-transform hover:scale-125"
                 style={{
                   left,
@@ -137,5 +137,3 @@ export function MapPlaceholder({
     </div>
   );
 }
-
-export { SEVERITY_TONE };

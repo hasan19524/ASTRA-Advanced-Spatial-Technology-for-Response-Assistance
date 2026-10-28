@@ -1,16 +1,20 @@
 "use client";
-/** Incident Management list (reference screen 2) — filters, tabs, table. */
+/**
+ * Incident Management list — real API (GET /api/v1/incidents) with category /
+ * assessment / verification / phase filters + pagination, plus a WS subscription
+ * that prepends any new public incident as it arrives (AD-10).
+ */
 import Link from "next/link";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { DataTable, type Column } from "@/components/ui/DataTable";
-import { applyFilters, useIncidents } from "@/stores/incidents";
-import type { MockIncident } from "@/lib/mocks/fixtures";
-import { CATEGORIES, SEVERITIES } from "@/lib/constants";
+import { useIncidents } from "@/stores/incidents";
+import type { IncidentOut } from "@/api/types";
+import { CATEGORIES } from "@/lib/constants";
 import { useAuthSession } from "@/hooks/useAuth";
 
 const PHASES = [
@@ -21,32 +25,63 @@ const PHASES = [
   { value: "RESOLVED", label: "Resolved" },
 ];
 
+const ASSESSMENTS = [
+  { value: "all", label: "All" },
+  { value: "UNASSESSED", label: "Unassessed" },
+  { value: "MAYBE_TRUE", label: "Maybe True" },
+  { value: "DEFINITELY_FALSE", label: "Definitely False" },
+];
+
 export default function IncidentsPage() {
   const router = useRouter();
-  const { items, load, loading, error, filters, setFilter } = useIncidents();
-  const { can } = useAuthSession();
+  const { token } = useAuthSession();
+  const {
+    items,
+    total,
+    load,
+    loading,
+    error,
+    filters,
+    setFilter,
+    connectWS,
+    disconnectWS,
+  } = useIncidents();
 
+  // load on mount + whenever filters change (server-side via query params)
   useEffect(() => {
-    void load();
-  }, [load]);
+    void load({
+      category: filters.category,
+      assessment: filters.assessment,
+      verification: filters.verification,
+      phase: filters.phase,
+    });
+  }, [load, filters.category, filters.assessment, filters.verification, filters.phase]);
 
-  const filtered = useMemo(() => applyFilters(items, filters), [items, filters]);
+  // live-map WS: prepend fresh public incidents (AD-10)
+  useEffect(() => {
+    connectWS(token);
+    return () => disconnectWS();
+  }, [connectWS, disconnectWS, token]);
 
-  const columns: Column<MockIncident>[] = [
+  const columns: Column<IncidentOut>[] = [
     {
       key: "id",
       header: "ID",
-      render: (r) => (
-        <span className="font-mono text-[var(--primary)]">{r.id}</span>
-      ),
+      render: (r) => <span className="font-mono text-[var(--primary)]">{r.id}</span>,
     },
     { key: "category", header: "Category", render: (r) => r.category },
     {
       key: "location",
       header: "Location",
-      render: (r) => <span className="text-[var(--muted)]">{r.location}</span>,
+      render: (r) => (
+        <span className="text-[var(--muted)]">{r.location_text ?? r.region ?? "—"}</span>
+      ),
     },
-    { key: "severity", header: "Severity", render: (r) => <StatusBadge value={r.severity} /> },
+    {
+      key: "assessment",
+      header: "AI Assessment",
+      render: (r) => <StatusBadge value={r.assessment_status} />,
+    },
     {
       key: "verification",
       header: "Verification",
@@ -60,7 +95,7 @@ export default function IncidentsPage() {
     {
       key: "updated",
       header: "Updated",
-      render: (r) => <span className="text-[var(--subtle)]">{r.updated_at}</span>,
+      render: (r) => <span className="text-[var(--subtle)] text-[10px]">{r.updated_at}</span>,
     },
   ];
 
@@ -68,13 +103,11 @@ export default function IncidentsPage() {
     <div>
       <PageHeader
         title="Incident Management"
-        subtitle="View, filter and manage all reported incidents"
+        subtitle={`${total} incident{total !== 1 ? "s" : ""} · live feed over WebSocket`}
         actions={
-          can("report.create") ? (
-            <Link href="/report">
-              <Button variant="primary">+ Report Incident</Button>
-            </Link>
-          ) : undefined
+          <Link href="/report">
+            <Button variant="primary">+ Report Incident</Button>
+          </Link>
         }
       />
 
@@ -83,12 +116,15 @@ export default function IncidentsPage() {
         <Select
           value={filters.category}
           onChange={(v) => setFilter("category", v)}
-          options={[{ value: "all", label: "All Categories" }, ...CATEGORIES.map((c) => ({ value: c, label: c }))]}
+          options={[
+            { value: "all", label: "All Categories" },
+            ...CATEGORIES.map((c) => ({ value: c, label: c })),
+          ]}
         />
         <Select
-          value={filters.severity}
-          onChange={(v) => setFilter("severity", v)}
-          options={[{ value: "all", label: "All Severities" }, ...SEVERITIES.map((s) => ({ value: s, label: s }))]}
+          value={filters.assessment}
+          onChange={(v) => setFilter("assessment", v)}
+          options={ASSESSMENTS}
         />
         <Select
           value={filters.verification}
@@ -103,38 +139,8 @@ export default function IncidentsPage() {
         <Select
           value={filters.phase}
           onChange={(v) => setFilter("phase", v)}
-          options={[
-            { value: "all", label: "All Response Phase" },
-            ...PHASES.filter((p) => p.value !== "all"),
-          ]}
+          options={PHASES.filter((p) => p.value !== "all")}
         />
-        <button className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[11px] text-[var(--muted)] hover:text-[var(--foreground)]">
-          ⏱ Last 7 days
-        </button>
-      </div>
-
-      {/* phase tabs */}
-      <div className="mb-3 flex gap-1 overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1">
-        {PHASES.map((p) => {
-          const active = filters.phase === p.value;
-          const count =
-            p.value === "all"
-              ? items.length
-              : items.filter((i) => i.response_phase === p.value).length;
-          return (
-            <button
-              key={p.value}
-              onClick={() => setFilter("phase", p.value)}
-              className={`whitespace-nowrap rounded-md px-3 py-1.5 text-[11px] font-medium transition-colors ${
-                active
-                  ? "bg-[var(--primary)] text-white"
-                  : "text-[var(--muted)] hover:bg-[var(--surface-2)]"
-              }`}
-            >
-              {p.label} ({count})
-            </button>
-          );
-        })}
       </div>
 
       {error && (
@@ -142,7 +148,7 @@ export default function IncidentsPage() {
           role="alert"
           className="mb-3 rounded-lg border border-[var(--danger)]/40 bg-[rgba(239,68,68,.1)] px-4 py-2.5 text-xs text-[#fee2e2]"
         >
-          Couldn&apos;t reach the incidents API — {error}. Showing demo data.
+          Couldn&apos;t reach the incidents API — {error}.
         </div>
       )}
 
@@ -153,18 +159,18 @@ export default function IncidentsPage() {
       ) : (
         <DataTable
           columns={columns}
-          rows={filtered}
+          rows={items}
           rowKey={(r) => r.id}
           onRowClick={(r) => router.push(`/incidents/${r.id}`)}
           empty={
             <EmptyState
               title="No incidents match these filters"
-              body="Try clearing a filter or widening the date range."
+              body="Try clearing a filter or submit the first report."
               action={
                 <Button
                   onClick={() => {
                     setFilter("category", "all");
-                    setFilter("severity", "all");
+                    setFilter("assessment", "all");
                     setFilter("verification", "all");
                     setFilter("phase", "all");
                   }}
@@ -175,28 +181,6 @@ export default function IncidentsPage() {
             />
           }
         />
-      )}
-
-      {filtered.length > 0 && (
-        <div className="mt-3 flex items-center justify-between text-[11px] text-[var(--muted)]">
-          <span>
-            Showing 1–{filtered.length} of {filtered.length} incidents
-          </span>
-          <div className="flex gap-1">
-            {[1, 2, 3, 4, 5].map((p) => (
-              <button
-                key={p}
-                className={`h-6 w-6 rounded ${
-                  p === 1
-                    ? "bg-[var(--primary)] text-white"
-                    : "border border-[var(--border)] hover:bg-[var(--surface-2)]"
-                }`}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-        </div>
       )}
     </div>
   );

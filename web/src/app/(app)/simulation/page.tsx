@@ -9,6 +9,7 @@ import { MapPlaceholder } from "@/components/map/MapPlaceholder";
 import { useAlerts } from "@/stores/alerts";
 import { useAuthSession } from "@/hooks/useAuth";
 import { mockIncidents } from "@/lib/mocks/fixtures";
+import type { IncidentOut } from "@/api/types";
 
 export default function SimulationPage() {
   const { can } = useAuthSession();
@@ -129,7 +130,7 @@ export default function SimulationPage() {
         <div className="lg:col-span-2">
           <Card title="Impact Preview" subtitle="Simulated overlay — never touches live data (AD-3)" padding={false}>
             <MapPlaceholder
-              incidents={simPins}
+              incidents={simPins as unknown as IncidentOut[]}
               className="min-h-[340px] border-0 rounded-b-xl"
             />
             {showAffected && (

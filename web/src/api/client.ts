@@ -47,15 +47,16 @@ export async function request<T>(
     return mockRequest<T>(path, method, body);
   }
 
+  const isFormData = body instanceof FormData;
   const doFetch = (tok: string | null) =>
     fetch(`${API_URL}${path}`, {
       method,
       signal,
       headers: {
-        ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+        ...(!isFormData && body !== undefined ? { "Content-Type": "application/json" } : {}),
         ...(tok ? { Authorization: `Bearer ${tok}` } : {}),
       },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: isFormData ? (body as FormData) : (body !== undefined ? JSON.stringify(body) : undefined),
     });
 
   let res: Response;

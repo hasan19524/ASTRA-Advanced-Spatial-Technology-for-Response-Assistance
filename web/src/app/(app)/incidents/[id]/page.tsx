@@ -1,7 +1,9 @@
 "use client";
 /**
- * Incident Detail (reference screen 3) — 4-axis status cards, info, timeline,
- * evidence + public poll. The 4 axes are independent (architecture §3).
+ * Incident Detail — real API (GET /api/v1/incidents/{id}).
+ * 4-axis status cards from IncidentOut + assessment timeline (assessments[])
+ * + evidence list (reports[] with photo URLs). 404 → not-found state (hidden
+ * rows surface as 404 to unauthorized roles, AD-19).
  */
 import Link from "next/link";
 import { use, useEffect } from "react";
@@ -10,8 +12,8 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useIncidents } from "@/stores/incidents";
-import { mockTimeline } from "@/lib/mocks/fixtures";
 import { useAuthSession } from "@/hooks/useAuth";
+import { API_URL } from "@/lib/constants";
 
 export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) {
   const params = use(props.params);
@@ -51,6 +53,9 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
   const inc = selected;
   if (!inc) return null;
 
+  const photoUrl = (p: { media_path: string | null }): string =>
+    p.media_path ? `${API_URL}${p.media_path}` : "";
+
   return (
     <div>
       <div className="mb-4">
@@ -62,10 +67,10 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
         </Link>
         <div className="mt-1 flex flex-wrap items-center gap-2">
           <h1 className="font-mono text-lg font-bold">{inc.id}</h1>
-          <StatusBadge value={inc.severity} />
+          <StatusBadge value={inc.assessment_status} />
           <span className="text-sm text-[var(--muted)]">·</span>
           <span className="text-sm font-semibold">
-            {inc.category} — {inc.location}
+            {inc.category} — {inc.location_text ?? inc.region ?? "—"}
           </span>
           <div className="ml-auto flex gap-2">
             <Button>↗ Share</Button>
@@ -82,14 +87,14 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
           label="AI Assessment"
           value={
             inc.assessment_status === "MAYBE_TRUE"
-              ? "Plausible"
+              ? "Maybe True"
               : inc.assessment_status === "DEFINITELY_FALSE"
                 ? "Definitely False"
                 : "Unassessed"
           }
           sub={
             inc.assessment_status === "MAYBE_TRUE"
-              ? "Confidence 87% · Assessed 18 min ago"
+              ? "AI: plausible — not verified"
               : "AI assesses only — it never verifies"
           }
           tone={inc.assessment_status === "MAYBE_TRUE" ? "info" : "false"}
@@ -100,12 +105,18 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
           value={inc.verification}
           sub={
             inc.verification === "VERIFIED"
-              ? "Verified by Officer-12 · 20 min ago"
+              ? "Verified by a Verification Officer"
               : inc.verification === "REJECTED"
                 ? "Rejected by an officer"
                 : "Awaiting a Verification Officer"
           }
-          tone={inc.verification === "VERIFIED" ? "verified" : inc.verification === "REJECTED" ? "false" : "unverified"}
+          tone={
+            inc.verification === "VERIFIED"
+              ? "verified"
+              : inc.verification === "REJECTED"
+                ? "false"
+                : "unverified"
+          }
           icon="🛡"
         />
         <AxisCard
@@ -113,12 +124,18 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
           value={inc.response_phase}
           sub={
             inc.response_phase === "ACTIVE"
-              ? "Team T-4 on site · since 15 min ago"
+              ? "Response team active"
               : inc.response_phase === "RESOLVED"
                 ? "Response complete"
                 : "No active response yet"
           }
-          tone={inc.response_phase === "ACTIVE" ? "critical" : inc.response_phase === "RESOLVED" ? "verified" : "neutral"}
+          tone={
+            inc.response_phase === "ACTIVE"
+              ? "critical"
+              : inc.response_phase === "RESOLVED"
+                ? "verified"
+                : "neutral"
+          }
           icon="🚨"
         />
         <AxisCard
@@ -126,7 +143,7 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
           value={inc.lifecycle}
           sub={
             inc.lifecycle === "OPEN"
-              ? "Started 20 min ago · only Central Admin can close"
+              ? "Open — only Central Admin can close"
               : "Closed by Central Admin"
           }
           tone={inc.lifecycle === "OPEN" ? "moderate" : "closed"}
@@ -141,11 +158,11 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
             <dl className="space-y-2 text-xs">
               {[
                 ["Category", inc.category],
-                ["Severity", inc.severity],
-                ["Location", inc.location],
-                ["Reported by", inc.reported_by],
-                ["Coordinates", `${inc.lat.toFixed(4)}° N, ${inc.lng.toFixed(4)}° E`],
+                ["Region", inc.region ?? "—"],
+                ["Location", inc.location_text ?? "—"],
+                ["Coordinates", `${inc.latitude.toFixed(4)}° N, ${inc.longitude.toFixed(4)}° E`],
                 ["Sensitivity", inc.sensitivity],
+                ["Reports", String(inc.report_count)],
                 ["Updated", inc.updated_at],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-3 border-b border-[var(--border)] pb-1.5 last:border-0">
@@ -155,7 +172,7 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
               ))}
             </dl>
             <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
-              {inc.description}
+              {inc.description ?? "No description provided."}
             </p>
             <Button variant="primary" className="mt-3 w-full">
               View on Map →
@@ -163,92 +180,74 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
           </Card>
         </div>
 
-        {/* middle: timeline */}
-        <Card title="Timeline">
+        {/* middle: assessment timeline */}
+        <Card title="Assessment Timeline">
           <ol className="relative space-y-4 border-l border-[var(--border-strong)] pl-4">
-            {mockTimeline.map((e) => (
-              <li key={e.id} className="relative">
-                <span
-                  className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full border-2 border-[var(--surface)]"
-                  style={{
-                    background:
-                      e.tone === "critical"
-                        ? "var(--danger)"
-                        : e.tone === "verified"
-                          ? "var(--success)"
-                          : e.tone === "info"
-                            ? "var(--primary)"
-                            : e.tone === "high"
-                              ? "var(--warning)"
-                              : "var(--subtle)",
-                  }}
-                />
-                <p className="text-xs font-medium">{e.text}</p>
-                <p className="text-[10px] text-[var(--subtle)]">{e.time}</p>
-              </li>
-            ))}
+            {inc.assessments.length === 0 ? (
+              <p className="text-[10px] text-[var(--muted)] text-center py-4">
+                No AI assessments yet.
+              </p>
+            ) : (
+              inc.assessments.map((a) => (
+                <li key={a.id} className="relative">
+                  <span
+                    className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full border-2 border-[var(--surface)]"
+                    style={{
+                      background:
+                        a.outcome === "MAYBE_TRUE"
+                          ? "var(--primary)"
+                          : a.outcome === "DEFINITELY_FALSE"
+                            ? "var(--danger)"
+                            : "var(--subtle)",
+                    }}
+                  />
+                  <p className="text-xs font-medium">{a.outcome}</p>
+                  {a.reason && (
+                    <p className="text-[10px] text-[var(--muted)]">{a.reason}</p>
+                  )}
+                  <p className="text-[10px] text-[var(--subtle)]">
+                    {a.backend} · {a.created_at}
+                  </p>
+                </li>
+              ))
+            )}
           </ol>
         </Card>
 
-        {/* right: evidence + poll */}
-        <Card
-          title={
-            <span className="flex gap-3">
-              <span className="border-b-2 border-[var(--primary)] pb-1 text-[var(--foreground)]">
-                Evidence (4)
-              </span>
-              <span className="text-[var(--muted)]">Public Poll (196)</span>
-            </span>
-          }
-        >
-          {/* thumbnails */}
-          <div className="mb-4 grid grid-cols-3 gap-2">
-            {[1, 2, 3].map((n) => (
-              <div
-                key={n}
-                className="aspect-square rounded-lg border border-[var(--border)] bg-gradient-to-br from-[var(--surface-2)] to-[var(--surface-3)]"
-              >
-                <img
-                  alt={`Evidence ${n}`}
-                  className="h-full w-full rounded-lg object-cover opacity-80"
-                  src={`https://picsum.photos/seed/astra${n}/120/120`}
-                  width={120}
-                  height={120}
-                  loading="lazy"
-                />
-              </div>
-            ))}
-          </div>
-
-          {/* poll — crowd signal, NEVER writes to verification (§3) */}
-          <p className="mb-2 text-xs font-semibold">Is this report correct?</p>
-          <div className="space-y-2">
-            <div>
-              <div className="mb-1 flex justify-between text-[11px]">
-                <span className="text-[var(--status-verified)]">✔ Correct</span>
-                <span className="font-semibold">82%</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-3)]">
-                <div className="h-full rounded-full bg-[var(--status-verified)]" style={{ width: "82%" }} />
-              </div>
+        {/* right: evidence */}
+        <Card title="Evidence">
+          {inc.reports.length === 0 ? (
+            <p className="text-[10px] text-[var(--muted)] text-center py-4">
+              No evidence attached.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {inc.reports.map((r) => (
+                <div
+                  key={r.id}
+                  className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3"
+                >
+                  {r.media_path ? (
+                    <img
+                      src={photoUrl(r)}
+                      alt="Evidence"
+                      className="w-16 h-16 rounded object-cover"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-2)] flex items-center justify-center text-[10px] text-[var(--muted)]">
+                      {r.source}
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <p className="text-xs font-medium truncate">{r.content}</p>
+                    <p className="text-[10px] text-[var(--muted)]">
+                      {r.source} · {r.created_at}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div>
-              <div className="mb-1 flex justify-between text-[11px]">
-                <span className="text-[var(--danger)]">✘ Incorrect</span>
-                <span className="font-semibold">18%</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-3)]">
-                <div className="h-full rounded-full bg-[var(--danger)]" style={{ width: "18%" }} />
-              </div>
-            </div>
-          </div>
-          <p className="mt-3 rounded-lg bg-[var(--surface-2)] px-3 py-2 text-[10px] text-[var(--muted)]">
-            Polls are a crowd reliability signal only — they never change the
-            official verification status.
-          </p>
-          <Button variant="primary" className="mt-3 w-full">
-            🗳 Vote in poll
-          </Button>
+          )}
         </Card>
       </div>
     </div>

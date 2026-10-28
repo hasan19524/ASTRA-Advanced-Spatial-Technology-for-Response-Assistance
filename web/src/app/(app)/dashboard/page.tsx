@@ -264,9 +264,9 @@ export default function DashboardPage() {
                             </Link>
                           </td>
                           <td className="px-4 py-2.5">{i.category}</td>
-                          <td className="px-4 py-2.5 text-[var(--muted)]">{i.location}</td>
+                          <td className="px-4 py-2.5 text-[var(--muted)]">{i.location_text ?? i.region ?? "—"}</td>
                           <td className="px-4 py-2.5">
-                            <StatusBadge value={i.severity} />
+                            <StatusBadge value={i.assessment_status} />
                           </td>
                           <td className="px-4 py-2.5">
                             <StatusBadge value={i.verification} />

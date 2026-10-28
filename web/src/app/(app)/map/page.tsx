@@ -1,26 +1,43 @@
 "use client";
-/** Live Operations Map (reference screen 4) — placeholder map + popup card. */
-import { useEffect, useMemo } from "react";
+/**
+ * Live Operations Map — placeholder map + popup card.
+ * Subscribes to /ws/map so pins flow in as incidents are created (AD-10);
+ * shows a proper empty state until the first public incident arrives.
+ */
+import { useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { MapPlaceholder } from "@/components/map/MapPlaceholder";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useMap } from "@/stores/map";
 import { useIncidents } from "@/stores/incidents";
+import { useAuthSession } from "@/hooks/useAuth";
 
 export default function LiveMapPage() {
+  const router = useRouter();
   const { selectedIncidentId, select, layers, toggleLayer, live, setLive } = useMap();
-  const { items, load } = useIncidents();
+  const {
+    items,
+    load,
+    connectWS,
+    disconnectWS,
+  } = useIncidents();
+
+  const { token } = useAuthSession();
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const now = useMemo(
-    () => new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
-    [],
-  );
+  useEffect(() => {
+    connectWS(token);
+    return () => disconnectWS();
+  }, [connectWS, disconnectWS, token]);
+
+  const now = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 
   const selected = items.find((i) => i.id === selectedIncidentId) ?? null;
 
@@ -28,7 +45,7 @@ export default function LiveMapPage() {
     <div>
       <PageHeader
         title="Live Operations Map"
-        subtitle={`Real-time incidents, response teams and routes across Delhi NCR · updated ${now}`}
+        subtitle={`Real-time incidents across Delhi NCR · updated ${now}`}
         actions={
           <div className="flex gap-2">
             <Button onClick={() => toggleLayer("incidents")}>
@@ -47,12 +64,24 @@ export default function LiveMapPage() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <MapPlaceholder
-            incidents={items.length ? items : undefined}
-            selectedId={selectedIncidentId}
-            onSelect={select}
-            className="min-h-[520px]"
-          />
+          {items.length === 0 ? (
+            <EmptyState
+              title="No public incidents yet"
+              body="Be the first to report — new submissions appear here live."
+              action={
+                <Button variant="primary" onClick={() => router.push("/report")}>
+                  Report an Incident
+                </Button>
+              }
+            />
+          ) : (
+            <MapPlaceholder
+              incidents={items}
+              selectedId={selectedIncidentId}
+              onSelect={select}
+              className="min-h-[520px]"
+            />
+          )}
         </div>
 
         <div className="space-y-4">
@@ -60,33 +89,35 @@ export default function LiveMapPage() {
             <div className="rounded-xl border border-[var(--border-strong)] bg-[var(--surface)] p-4">
               <div className="mb-2 flex items-center justify-between">
                 <span className="font-mono text-sm font-bold">{selected.id}</span>
-                <StatusBadge value={selected.severity} />
+                <StatusBadge value={selected.assessment_status} />
               </div>
               <p className="text-xs font-semibold">
-                {selected.category} — {selected.location}
+                {selected.category} — {selected.location_text ?? selected.region ?? "—"}
               </p>
               <dl className="mt-3 space-y-1.5 text-[11px]">
                 <div className="flex justify-between">
                   <dt className="text-[var(--muted)]">Location</dt>
-                  <dd>{selected.location}</dd>
+                  <dd>{selected.location_text ?? selected.region ?? "—"}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-[var(--muted)]">Reported</dt>
                   <dd>{selected.updated_at}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-[var(--muted)]">Status</dt>
+                  <dt className="text-[var(--muted)]">AI Assessment</dt>
                   <dd>
-                    <StatusBadge value={selected.response_phase} />
+                    <StatusBadge value={selected.assessment_status} />
                   </dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-[var(--muted)]">Assigned Team</dt>
-                  <dd>T-3 (Ambulance)</dd>
+                  <dt className="text-[var(--muted)]">Verification</dt>
+                  <dd>
+                    <StatusBadge value={selected.verification} />
+                  </dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-[var(--muted)]">ETA</dt>
-                  <dd className="text-[var(--primary)]">12 minutes</dd>
+                  <dt className="text-[var(--muted)]">Response</dt>
+                  <dd className="text-[var(--primary)]">{selected.response_phase}</dd>
                 </div>
               </dl>
               <Link href={`/incidents/${selected.id}`}>

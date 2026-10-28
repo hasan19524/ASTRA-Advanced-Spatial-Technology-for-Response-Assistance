@@ -45,3 +45,58 @@ export interface Paged<T> {
   page: number;
   page_size: number;
 }
+
+/* ---------- Incident contract (api/app/schemas/incident.py) ---------- */
+
+export interface ReportOut {
+  id: string;
+  content: string;
+  source: string; // TEXT | PHOTO | VOICE
+  media_path: string | null;
+  created_at: string;
+}
+
+export interface AssessmentOut {
+  id: string;
+  backend: string; // RULE | LLM | EVON
+  outcome: string; // DEFINITELY_FALSE | MAYBE_TRUE
+  confidence: number | null;
+  reason: string | null;
+  created_at: string;
+}
+
+export interface IncidentOut {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string;
+  region: string | null;
+  latitude: number;
+  longitude: number;
+  location_text: string | null;
+  sensitivity: string;
+  assessment_status: string;
+  visibility: string;
+  verification: string;
+  response_phase: string;
+  lifecycle: string;
+  report_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IncidentCreatedOut extends IncidentOut {
+  grouped: boolean;
+}
+
+export interface IncidentDetailOut extends IncidentOut {
+  reports: ReportOut[];
+  assessments: AssessmentOut[];
+}
+
+export interface IncidentPageOut {
+  items: IncidentOut[];
+  total: number;
+  limit: number;
+  offset: number;
+}
