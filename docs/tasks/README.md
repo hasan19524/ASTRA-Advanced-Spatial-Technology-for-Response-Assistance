@@ -6,11 +6,13 @@ pushes; each dev pulls at session start and works **only their own folder**.
 ```
 tasks/
 ├─ hasan/
-│  ├─ 2026-10-27.md   ← Day 1 assignment (done)
-│  └─ 2026-10-28.md   ← Day 2 assignment (today)
+│  ├─ 2026-10-26.md   ← Day 1 assignment (done)
+│  ├─ 2026-10-27.md   ← Day 2 assignment (done)
+│  └─ 2026-10-28.md   ← Day 3 assignment (today)
 └─ lubna/
-   ├─ 2026-10-27.md   ← Day 1 assignment (missed — folded into the 28th)
-   └─ 2026-10-28.md   ← Day 1 + Day 2 combined (today, first session)
+   ├─ 2026-10-26.md   ← Day 1 assignment (missed — folded into the 27th)
+   ├─ 2026-10-27.md   ← Day 1 + Day 2 combined (done, first session)
+   └─ 2026-10-28.md   ← Day 3 assignment (today)
 ```
 
 ## Rules

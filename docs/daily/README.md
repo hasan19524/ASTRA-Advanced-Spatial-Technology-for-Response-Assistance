@@ -12,28 +12,32 @@ docs/
 ├─ tasks/                      ← assignments ("what is my task today")
 │  ├─ README.md
 │  ├─ hasan/
-│  │  ├─ 2026-10-27.md         Day 1  ✅ done
-│  │  └─ 2026-10-28.md         Day 2  ← today's tasks
+│  │  ├─ 2026-10-26.md         Day 1  ✅ done
+│  │  ├─ 2026-10-27.md         Day 2  ✅ done
+│  │  └─ 2026-10-28.md         Day 3  ← today's tasks
 │  └─ lubna/
-│     ├─ 2026-10-27.md         missed → folded into the 28th
-│     └─ 2026-10-28.md         Day 1+2 combined ← her first session
+│     ├─ 2026-10-26.md         missed → folded into the 27th
+│     ├─ 2026-10-27.md         Day 1+2 combined  ✅ done
+│     └─ 2026-10-28.md         Day 3  ← today's tasks
 ├─ daily/                      ← worklogs ("what happened")
 │  ├─ README.md                ← this file
 │  ├─ hasan/
-│  │  ├─ 2026-10-27.md         Day 1  ✅ written
-│  │  └─ 2026-10-28.md         Day 2  ← filled as Hasan works
+│  │  ├─ 2026-10-26.md         Day 1  ✅ written
+│  │  ├─ 2026-10-27.md         Day 2  ✅ written
+│  │  └─ 2026-10-28.md         Day 3  ← filled as Hasan works
 │  └─ lubna/
-│     └─ 2026-10-28.md         BLANK  ← she fills it after doing the tasks
+│     ├─ 2026-10-27.md         Day 1+2  ✅ written
+│     └─ 2026-10-28.md         Day 3  ← BLANK, she fills it after the tasks
 ├─ architecture.md             ← locked decisions (AD-1…18)
 └─ research-existing-apps.md   ← real-world precedents + data/keys
 ```
 
 ## 📌 Current day
 
-**Day 2 — 2026-10-28:**
+**Day 3 — 2026-10-28 (Incident Core — first vertical slice):**
 
 - Hasan's tasks → [`tasks/hasan/2026-10-28.md`](../tasks/hasan/2026-10-28.md)
-- Lubna's tasks (Day 1+2) → [`tasks/lubna/2026-10-28.md`](../tasks/lubna/2026-10-28.md)
+- Lubna's tasks → [`tasks/lubna/2026-10-28.md`](../tasks/lubna/2026-10-28.md)
 
 **Newest date = today.** Pull first, open your own folder.
 
