@@ -35,6 +35,7 @@ _ACTIONS = (
     ("/auth/register", "auth.register"),
     ("/auth/refresh", "auth.refresh"),
     ("/auth/logout", "auth.logout"),
+    ("/incidents", "incident.create"),  # POST /api/v1/incidents (report submission)
 )
 
 

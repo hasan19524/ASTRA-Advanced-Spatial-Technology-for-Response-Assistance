@@ -22,7 +22,7 @@ No Django, no stack swaps, no new frameworks without discussion.
 
 ---
 
-## 2. Decisions (AD-1 … AD-18)
+## 2. Decisions (AD-1 … AD-22)
 
 | # | Decision | Choice | Consequences |
 |---|---|---|---|
@@ -39,7 +39,7 @@ No Django, no stack swaps, no new frameworks without discussion.
 | AD-11 | **Next.js rendering** | **Client-heavy** — dashboards/map/assistant are `"use client"`; server components only for layout shells | Zustand and WS never run on the server → no RSC hydration bugs. |
 | AD-12 | **Tooling** | `ruff` (lint+format) for Python · `pytest` auth contract tests · eslint (present) | `ruff check` before every push. Tests in `api/tests/`. |
 
-### Domain decisions (AD-13 … AD-18)
+### Domain decisions (AD-13 … AD-22)
 
 | # | Decision | Choice | Consequences |
 |---|---|---|---|
@@ -49,6 +49,10 @@ No Django, no stack swaps, no new frameworks without discussion.
 | AD-16 | **Voice languages** | **All Indian languages Gnani supports** — no hardcoding | Backend passes BCP-47 codes through to STT/TTS untouched; frontend exposes a language selector on voice features; seed carries multilingual samples. UI chrome stays English (no i18n framework in scope). |
 | AD-17 | **API prefix** | **`/api/v1/...`** | Business routers mounted under `/api/v1`; `/health` stays bare; OpenAPI remains the contract. |
 | AD-18 | **Poll eligibility** | **Every public UNVERIFIED incident** | Poll opens automatically with public publication — closes the "eligible" gap vision.md never defined. Restricted incidents aren't public → never polled. |
+| AD-19 | **Incident read visibility** | List/detail require a token. Rows with `sensitivity=RESTRICTED` **or** `visibility=HIDDEN` exist only for `incident.view_restricted` holders (Central Admin + Verification Officer); everyone else gets **absence from lists and 404 by id — never 403** | Existence stays secret; no probing for hidden reports. One predicate in `incident_service` serves list *and* detail (`scoping.py`-style, like tasks). |
+| AD-20 | **Live map channel** | `ws://…/ws/map?token=<jwt>` (no `/api/v1` prefix) + **Redis pub/sub topic `incidents:map`**; envelopes `connected` and `incident.created` with `IncidentOut`; publish only while `visibility=PUBLIC_UNVERIFIED AND sensitivity=PUBLIC` | Redis decouples creation from fan-out (any number of map clients). WS is an enhancement: publish failures are logged, never fail a submission. |
+| AD-21 | **Duplicate grouping v1** | Attach report to parent: same `region`, ≤ 30 min old, ≥ 50% token overlap on title+description, parent not `DEFINITELY_FALSE` → 201 with the **parent's** `IncidentOut` + `grouped: true` | No duplicate incident rows ever (vision §D); `report_count` grows; reports/evidence retained. Exact-string region match v1 — Day 6 can add geo distance. |
+| AD-22 | **Assessment stub** | Deterministic **3 ordered rules** (outside-NCR region → DF · keyword blacklist → DF · trusted-reporter whitelist → MT · else MT), every row `backend="rules_stub"` + reason | Runs on every `POST /incidents` before commit; DF flips HIDDEN+CLOSED via the state machine (AD-19 makes it invisible immediately). Lists are pinned by tests — growing them is a contract change. |
 
 ### Sensitivity rule (AD-15 addendum — closes a vision.md gap)
 

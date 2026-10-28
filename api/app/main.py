@@ -4,11 +4,13 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.core.audit import AuditMiddleware
 from app.core.config import settings
 from app.core.database import dispose
-from app.routers import auth, tasks
+from app.routers import auth, incidents, map_ws, tasks
+from app.services.incident_service import UPLOADS_DIR
 
 
 @asynccontextmanager
@@ -39,7 +41,14 @@ app.add_middleware(
 app.add_middleware(AuditMiddleware)
 
 app.include_router(auth.router, prefix="/api/v1")
+app.include_router(incidents.router, prefix="/api/v1")
 app.include_router(tasks.router, prefix="/api/v1")
+# live map channel — no /api/v1 prefix (frozen Day 3 contract, AD-10 query auth)
+app.include_router(map_ws.router)
+
+# AD-8: evidence photos — plain static route (dir must exist before mount).
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 
 
 @app.get("/health")

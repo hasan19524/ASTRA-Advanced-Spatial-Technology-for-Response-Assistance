@@ -122,7 +122,10 @@ async def test_refresh_token_rejected_as_access_token(client):
 async def test_tampered_token_401(client):
     r = await _register(client)
     token = r.json()["access_token"]
-    tampered = token[:-2] + "xx"
+    # swap the signature tail — guaranteed to actually differ (token[-2:] may
+    # itself be "xx", which made the old tamper a 1-in-4096 no-op)
+    tail = "yy" if token.endswith("xx") else "xx"
+    tampered = token[:-2] + tail
     me = await client.get(
         "/api/v1/auth/me", headers={"Authorization": f"Bearer {tampered}"}
     )
