@@ -7,6 +7,7 @@ from app.core.deps import get_current_user, get_db
 from app.core.security import decode_refresh_token
 from app.models import User
 from app.schemas.auth import (
+    DemoLoginRequest,
     LoginRequest,
     RefreshRequest,
     RegisterRequest,
@@ -34,6 +35,15 @@ async def login(
     payload: LoginRequest, db: AsyncSession = Depends(get_db)
 ) -> TokenResponse:
     user = await auth_service.authenticate(db, payload)
+    return auth_service.issue_tokens(user)
+
+
+@router.post("/demo-login", response_model=TokenResponse)
+async def demo_login(
+    payload: DemoLoginRequest, db: AsyncSession = Depends(get_db)
+) -> TokenResponse:
+    """Server-side demo login (audit S1) �?" password never sent by the client."""
+    user = await auth_service.demo_login(db, payload.email)
     return auth_service.issue_tokens(user)
 
 

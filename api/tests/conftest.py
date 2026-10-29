@@ -13,6 +13,7 @@ os.environ["DATABASE_URL"] = (
 os.environ["JWT_SECRET"] = "test-secret"
 
 import httpx  # noqa: E402
+import pytest  # noqa: E402
 import pytest_asyncio  # noqa: E402
 
 from app.core import database  # noqa: E402
@@ -61,13 +62,31 @@ _ensure_database()
 _reset_tables()
 
 
+async def _async_reset_tables() -> None:
+    engine = database.get_engine()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+    await engine.dispose()
+    database.get_engine.cache_clear()
+    database.get_session_factory.cache_clear()
+    database.get_redis.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def _reset_db_per_test():
+    """Reset the test database before every test (sync + async)."""
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(_async_reset_tables())
+    finally:
+        loop.close()
+    yield
+
+
 @pytest_asyncio.fixture(autouse=True)
 async def _engine_per_test():
-    """Fresh engine/pool per test, bound to that test's event loop.
-
-    The engine is lru_cached at module level; reusing a pool across
-    pytest-asyncio's per-function loops raises "attached to a different loop".
-    """
+    """Fresh engine/pool per test, bound to that test's event loop."""
     database.get_engine.cache_clear()
     database.get_session_factory.cache_clear()
     database.get_redis.cache_clear()

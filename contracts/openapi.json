@@ -88,6 +88,48 @@
         }
       }
     },
+    "/api/v1/auth/demo-login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Demo Login",
+        "description": "Server-side demo login (audit S1) \ufffd?\" password never sent by the client.",
+        "operationId": "demo_login_api_v1_auth_demo_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DemoLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/refresh": {
       "post": {
         "tags": [
@@ -437,6 +479,460 @@
         }
       }
     },
+    "/api/v1/incidents/{incident_id}/poll": {
+      "get": {
+        "tags": [
+          "poll"
+        ],
+        "summary": "Get Poll",
+        "description": "Current poll snapshot for one incident (eligible, my vote, counts).",
+        "operationId": "get_poll_api_v1_incidents__incident_id__poll_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "incident_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Incident Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PollOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/incidents/{incident_id}/poll/vote": {
+      "post": {
+        "tags": [
+          "poll"
+        ],
+        "summary": "Vote On Poll",
+        "description": "Cast one vote. One vote per user per incident (unique constraint).",
+        "operationId": "vote_on_poll_api_v1_incidents__incident_id__poll_vote_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "incident_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Incident Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PollVoteIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PollOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/incidents/{incident_id}/verify": {
+      "post": {
+        "tags": [
+          "verification"
+        ],
+        "summary": "Verify",
+        "description": "Officer verifies or rejects an incident. REJECTED requires a reason.",
+        "operationId": "verify_api_v1_incidents__incident_id__verify_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "incident_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Incident Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationDecisionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/incidents/{incident_id}/reject": {
+      "post": {
+        "tags": [
+          "verification"
+        ],
+        "summary": "Reject",
+        "description": "Convenience alias for verify with verdict=REJECTED (reason required).",
+        "operationId": "reject_api_v1_incidents__incident_id__reject_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "incident_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Incident Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationDecisionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/incidents/{incident_id}/reopen": {
+      "post": {
+        "tags": [
+          "verification"
+        ],
+        "summary": "Reopen",
+        "description": "Reopen a REJECTED incident back to UNVERIFIED (reason required).",
+        "operationId": "reopen_api_v1_incidents__incident_id__reopen_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "incident_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Incident Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReopenIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationDecisionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/verification/queue": {
+      "get": {
+        "tags": [
+          "verification"
+        ],
+        "summary": "Queue",
+        "description": "Officer queue: UNVERIFIED and REJECTED incidents, oldest first.",
+        "operationId": "queue_api_v1_verification_queue_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "assessment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Assessment"
+            }
+          },
+          {
+            "name": "min_age_minutes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Age Minutes"
+            }
+          },
+          {
+            "name": "urgency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Urgency"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentPageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/uploads/{filename}": {
+      "get": {
+        "summary": "Serve Upload",
+        "operationId": "serve_upload_uploads__filename__get",
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Filename"
+            }
+          },
+          {
+            "name": "exp",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exp"
+            }
+          },
+          {
+            "name": "sig",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sig"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -591,6 +1087,20 @@
           "category"
         ],
         "title": "Body_submit_report_api_v1_incidents_post"
+      },
+      "DemoLoginRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "DemoLoginRequest"
       },
       "HTTPValidationError": {
         "properties": {
@@ -833,6 +1343,14 @@
             "type": "array",
             "title": "Assessments",
             "default": []
+          },
+          "verification_events": {
+            "items": {
+              "$ref": "#/components/schemas/VerificationEventOut"
+            },
+            "type": "array",
+            "title": "Verification Events",
+            "default": []
           }
         },
         "type": "object",
@@ -1016,6 +1534,71 @@
         ],
         "title": "LoginRequest"
       },
+      "PollOut": {
+        "properties": {
+          "eligible": {
+            "type": "boolean",
+            "title": "Eligible"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "my_vote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "My Vote"
+          },
+          "genuine": {
+            "type": "integer",
+            "title": "Genuine",
+            "default": 0
+          },
+          "fake": {
+            "type": "integer",
+            "title": "Fake",
+            "default": 0
+          },
+          "percent_genuine": {
+            "type": "number",
+            "title": "Percent Genuine",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "eligible"
+        ],
+        "title": "PollOut"
+      },
+      "PollVoteIn": {
+        "properties": {
+          "vote": {
+            "type": "string",
+            "title": "Vote",
+            "description": "'genuine' or 'fake'"
+          }
+        },
+        "type": "object",
+        "required": [
+          "vote"
+        ],
+        "title": "PollVoteIn",
+        "description": "genuine = the hazard looks real; fake = prank / false report."
+      },
       "RefreshRequest": {
         "properties": {
           "refresh_token": {
@@ -1056,6 +1639,19 @@
           "password"
         ],
         "title": "RegisterRequest"
+      },
+      "ReopenIn": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "ReopenIn"
       },
       "ReportOut": {
         "properties": {
@@ -1260,6 +1856,115 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VerificationDecisionOut": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "officer_id": {
+            "type": "string",
+            "title": "Officer Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "officer_id",
+          "created_at"
+        ],
+        "title": "VerificationDecisionOut"
+      },
+      "VerificationEventOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "officer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Officer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "action",
+          "created_at"
+        ],
+        "title": "VerificationEventOut"
+      },
+      "VerifyIn": {
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "VERIFIED",
+              "REJECTED"
+            ],
+            "title": "Verdict"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "verdict"
+        ],
+        "title": "VerifyIn"
       }
     },
     "securitySchemes": {

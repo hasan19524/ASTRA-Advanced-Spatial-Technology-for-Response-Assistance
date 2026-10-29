@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.permissions import permissions_for
+from app.core.config import settings
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -68,5 +69,24 @@ async def authenticate(db: AsyncSession, payload: LoginRequest) -> User:
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+        )
+    return user
+
+
+async def demo_login(db: AsyncSession, email: str) -> User:
+    """Server-side demo login (audit S1).
+
+    Active only when DEMO_MODE=true; otherwise 403. Unknown / inactive
+    accounts also yield 403 so there is no enumeration surface, and the
+    password never leaves the server.
+    """
+    if not settings.demo_mode:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Demo login disabled"
+        )
+    user = await db.scalar(select(User).where(User.email == email.lower()))
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Demo login disabled"
         )
     return user

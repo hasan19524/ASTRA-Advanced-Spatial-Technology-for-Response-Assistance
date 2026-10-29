@@ -28,6 +28,7 @@ from app.schemas.incident import (
     IncidentPageOut,
     ReportOut,
 )
+from app.schemas.verification import VerificationEventOut
 from app.services import incident_service as svc
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
@@ -117,4 +118,10 @@ async def get_incident(
     detail.reports = [ReportOut.model_validate(r) for r in reports]
     detail.assessments = [AssessmentOut.model_validate(a) for a in assessments]
     detail.report_count = len(reports)
+    events = await svc.verification_events(
+        db, incident_id, svc.can_see_restricted(user)
+    )
+    detail.verification_events = [
+        VerificationEventOut.model_validate(e) for e in events
+    ]
     return detail

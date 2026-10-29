@@ -394,16 +394,12 @@ async def test_seed_roles_can_login_with_shared_password(client, role):
 
 
 async def mod_seed_once() -> None:
-    """Run the seed once per test session (idempotent, cheap after first run)."""
-    global _SEED_DONE
-    if _SEED_DONE:
-        return
+    """Run the seed (idempotent; re-run after a DB reset)."""
     path = pathlib.Path(__file__).resolve().parents[2] / "seed" / "seed.py"
     spec = importlib.util.spec_from_file_location("astra_seed_once", path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     await mod.main()
-    _SEED_DONE = True
 
 
 _SEED_DONE = False

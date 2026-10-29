@@ -13,7 +13,8 @@ services:
       POSTGRES_DB: astra
     ports:
       # 5433: host port 5432 is already taken by a local PostgreSQL service on this machine
-      - "5433:5432"
+      # Day 4 (audit S3): localhost-only — venue Wi-Fi must never reach the DB.
+      - "127.0.0.1:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -25,7 +26,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -35,11 +36,14 @@ services:
   api:
     build: ./api
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/astra
       REDIS_URL: redis://redis:6379/0
-      JWT_SECRET: ${JWT_SECRET:-ast-ra-dev-secret-change-in-prod}
+      # Day 4 (S2): fail fast when the secret is unset — code/.env must set it.
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in code/.env (see api/.env.example)}
+      # Day 4 (S1): demo-login endpoint gate — true only on the demo machine.
+      DEMO_MODE: ${DEMO_MODE:-false}
       ENVIRONMENT: development
     volumes:
       - ./api:/app

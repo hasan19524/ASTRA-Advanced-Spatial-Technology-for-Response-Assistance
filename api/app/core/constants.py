@@ -18,6 +18,13 @@ CATEGORIES: frozenset[str] = frozenset(
     }
 )
 
+# Day 4: categories the officer verification queue treats as urgent
+# (life-safety first). Change here, not in routers.
+URGENT_CATEGORIES: frozenset[str] = frozenset(
+    {"Fire", "Medical emergency", "Structural collapse", "Accident"}
+)
+
+
 # AD-13 — Delhi NCR regions ASTRA covers (the seed's regions + the two other
 # major NCR cities). The assessment stub's geo rule treats any *given* region
 # outside this set as outside coverage (vision.md §B: contradicting geo signal).

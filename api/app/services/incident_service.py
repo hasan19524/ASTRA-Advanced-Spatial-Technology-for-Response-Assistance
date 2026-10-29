@@ -26,9 +26,15 @@ from app.core.constants import (
     NCR_CENTER_LON,
 )
 from app.core.permissions import permissions_for
-from app.models import Assessment, Incident, IncidentReport, User
-from app.services import incident_state
-from app.services.assessment_stub import assess_submission
+from app.models import (
+    Assessment,
+    Incident,
+    IncidentReport,
+    User,
+    VerificationEvent,
+)
+from app.services import assessment_backend, incident_state
+from app.services.assessment_backend import AssessmentBackend
 from app.services.map_ws import publish_incident_created
 
 # AD-8: api/uploads/ (gitignored) — resolved from this file so it works both
@@ -90,7 +96,12 @@ def token_overlap(parent_text: str, submission_text: str) -> float:
 
 
 async def find_duplicate_parent(
-    db: AsyncSession, *, title: str, description: str | None, region: str | None
+    db: AsyncSession,
+    *,
+    title: str,
+    description: str | None,
+    region: str | None,
+    category: str | None = None,
 ) -> Incident | None:
     """The task-6 matcher: same region, ≤ 30 min old, ≥ 50% token overlap on
     title+description, parent not DEFINITELY_FALSE. Region-less submissions
@@ -100,15 +111,18 @@ async def find_duplicate_parent(
         return None
     text = f"{title} {description or ''}"
     cutoff = datetime.now(timezone.utc) - timedelta(minutes=DUPLICATE_WINDOW_MINUTES)
+    clauses = [
+        Incident.region == region,
+        Incident.created_at >= cutoff,
+        Incident.assessment_status != "DEFINITELY_FALSE",
+        Incident.visibility.in_(("PUBLIC", "PUBLIC_UNVERIFIED")),
+        Incident.sensitivity == "PUBLIC",
+    ]
+    if category is not None:
+        clauses.append(Incident.category == category)
     candidates = (
         await db.scalars(
-            select(Incident)
-            .where(
-                Incident.region == region,
-                Incident.created_at >= cutoff,
-                Incident.assessment_status != "DEFINITELY_FALSE",
-            )
-            .order_by(Incident.created_at.desc())
+            select(Incident).where(*clauses).order_by(Incident.created_at.desc())
         )
     ).all()
     for candidate in candidates:
@@ -130,18 +144,23 @@ async def create_incident(
     longitude: float | None,
     location_text: str | None,
     media_path: str | None,
+    backend: AssessmentBackend | None = None,
 ) -> tuple[Incident, bool]:
     """One citizen submission → one incident + its first `incident_reports`
     row (vision.md §A/§D: reports are always retained under an incident),
     UNLESS it groups under a recent duplicate parent — then it is filed as
-    an extra report on that parent and `(parent, True)` comes back (task 6)."""
+    an extra report on that parent and `(parent, True)` comes back (task 6).
+
+    `backend` is an injected assessment backend (tests); production leaves it
+    None so `get_assessment_backend()` decides (rules by default, LLM with
+    automatic degradation — AD-24)."""
     if not title:
         raise HTTPException(status_code=422, detail="title is required")
     if category not in CATEGORIES:
         raise HTTPException(status_code=422, detail=f"Unknown category: {category}")
 
     parent = await find_duplicate_parent(
-        db, title=title, description=description, region=region
+        db, title=title, description=description, region=region, category=category
     )
     if parent is not None:
         db.add(
@@ -179,9 +198,10 @@ async def create_incident(
             source="PHOTO" if media_path else "TEXT",
         )
     )
-    # task 4: deterministic stub runs on every submission, applies task 3's
-    # state machine (axes flip for DEFINITELY_FALSE before the commit lands)
-    outcome, reason, confidence = assess_submission(
+    # task 4: pluggable assessment (AD-24) — the stub stays byte-identical;
+    # get_assessment_backend() is the single seam (rules by default, LLM with
+    # automatic degradation when the key is missing or the call fails).
+    result = await (backend or assessment_backend.get_assessment_backend()).assess(
         title=title,
         description=description,
         region=region,
@@ -190,10 +210,11 @@ async def create_incident(
     db.add(
         incident_state.apply_assessment(
             incident,
-            outcome,
-            backend="rules_stub",
-            reason=reason,
-            confidence=confidence,
+            result.outcome,
+            backend=result.backend,
+            reason=result.reason,
+            confidence=result.confidence,
+            model=result.model,
         )
     )
     await db.commit()
@@ -214,6 +235,34 @@ async def report_counts(db: AsyncSession, incident_ids: list[str]) -> dict[str, 
         .group_by(IncidentReport.incident_id)
     )
     return {incident_id: count for incident_id, count in rows.all()}
+
+
+async def verification_events(
+    db: AsyncSession, incident_id: str, can_see_restricted: bool
+) -> list[dict]:
+    """Append-only verification timeline for the detail page (AD-23).
+
+    Citizens see action + timestamps only; `reason` and `officer` are
+    stripped (not omitted — stable shape for the frontend).
+    """
+    rows = await db.execute(
+        select(VerificationEvent, User.full_name)
+        .join(User, User.id == VerificationEvent.officer_id)
+        .where(VerificationEvent.incident_id == incident_id)
+        .order_by(VerificationEvent.created_at.asc())
+    )
+    out = []
+    for event, officer_name in rows.all():
+        out.append(
+            {
+                "id": event.id,
+                "action": event.action,
+                "reason": event.reason if can_see_restricted else None,
+                "officer": officer_name if can_see_restricted else None,
+                "created_at": event.created_at,
+            }
+        )
+    return out
 
 
 async def list_incidents(

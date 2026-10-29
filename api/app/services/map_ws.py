@@ -45,15 +45,43 @@ async def subscribe() -> redis_asyncio.client.PubSub:
     return pubsub
 
 
+def _map_publishable(out: IncidentOut) -> bool:
+    """Map feed membership: PUBLIC + (PUBLIC_UNVERIFIED or PUBLIC) — never
+    HIDDEN or RESTRICTED. PUBLIC incidents don't exist yet (Day 5 admin
+    publish); allowing them here keeps this rule future-proof without
+    changing today's behavior (nothing emits visibility=PUBLIC)."""
+    return out.sensitivity == "PUBLIC" and out.visibility in (
+        "PUBLIC_UNVERIFIED",
+        "PUBLIC",
+    )
+
+
 async def publish_incident_created(incident: Incident) -> None:
     """Publish one `incident.created` envelope — never raises: a Redis hiccup
     must not fail the citizen's submission (WS is a live enhancement)."""
     out = IncidentOut.model_validate(incident)
-    if out.visibility != "PUBLIC_UNVERIFIED" or out.sensitivity != "PUBLIC":
+    if not _map_publishable(out):
         return
     envelope = {
         "channel": CHANNEL,
         "type": "incident.created",
+        "data": out.model_dump(mode="json"),
+    }
+    try:
+        await pool().publish(CHANNEL, json.dumps(envelope))
+    except (RedisError, OSError) as exc:
+        logger.warning("map WS publish skipped: %s", exc)
+
+
+async def publish_incident_updated(incident: Incident) -> None:
+    """Publish one `incident.updated` envelope when the verification axis
+    flips — never raises (same availability rule as created)."""
+    out = IncidentOut.model_validate(incident)
+    if not _map_publishable(out):
+        return
+    envelope = {
+        "channel": CHANNEL,
+        "type": "incident.updated",
         "data": out.model_dump(mode="json"),
     }
     try:

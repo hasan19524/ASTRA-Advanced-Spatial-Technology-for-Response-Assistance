@@ -42,8 +42,8 @@
 | 8 | `GET /incidents/{id}` → 4-axis status + history | Detail page | ⬜ |
 | 9 | `WS /ws/incidents` (public pins) | Live map | ⬜ |
 | 10 | `GET /incidents/{id}/poll` · `POST .../poll/vote` | Poll card | ⬜ |
-| 11 | `POST /incidents/{id}/verify` · `/reject` | Officer queue | ⬜ |
-| 12 | `GET /verification/queue` | Officer dashboard | ⬜ |
+| 11 | POST /incidents/{id}/verify (verdict VERIFIED|REJECTED) + POST /incidents/{id}/reopen | Officer queue | done |
+| 12 | GET /verification/queue (filters assessment, min_age_minutes, urgency) | Officer dashboard | done |
 | 13 | `POST /incidents/{id}/tasks` · `PATCH /tasks/{id}` | Admin/Dept dashboards | ⬜ |
 | 14 | `POST /incidents/{id}/close` | Central Admin | ⬜ |
 | 15 | `GET /alerts` · `POST /alerts/subscriptions` | Alerts center | ⬜ |

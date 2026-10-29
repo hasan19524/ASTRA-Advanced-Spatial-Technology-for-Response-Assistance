@@ -151,3 +151,52 @@ def test_illegal_reopening_a_df_report():
 def test_illegal_assessment_outcome():
     with pytest.raises(state.InvariantError, match="two vision categories"):
         state.apply_assessment(_incident(), "MAYBE_FAKE", backend="x", reason="y")
+
+
+# ---------------------------------------------------------------- Day 4 (AD-23)
+def test_officer_can_reject():
+    inc = _incident(assessment_status="MAYBE_TRUE", visibility="PUBLIC_UNVERIFIED")
+    state.set_verification(inc, _user("VERIFICATION_OFFICER"), "REJECTED")
+    assert inc.verification == "REJECTED"
+
+
+def test_reopen_after_reject_is_legal():
+    inc = _incident(
+        assessment_status="MAYBE_TRUE",
+        visibility="PUBLIC_UNVERIFIED",
+        verification="REJECTED",
+    )
+    state.set_verification(inc, _user("VERIFICATION_OFFICER"), "UNVERIFIED")
+    assert inc.verification == "UNVERIFIED"
+
+
+def test_verified_is_terminal_refuses_reject():
+    inc = _incident(
+        assessment_status="MAYBE_TRUE",
+        visibility="PUBLIC_UNVERIFIED",
+        verification="VERIFIED",
+    )
+    with pytest.raises(state.InvariantError, match="terminal"):
+        state.set_verification(inc, _user("VERIFICATION_OFFICER"), "REJECTED")
+    assert inc.verification == "VERIFIED"
+
+
+def test_noop_change_is_refused():
+    inc = _incident(verification="UNVERIFIED")
+    with pytest.raises(state.InvariantError, match="already UNVERIFIED"):
+        state.set_verification(inc, _user("VERIFICATION_OFFICER"), "UNVERIFIED")
+    assert inc.verification == "UNVERIFIED"
+
+
+def test_citizen_cannot_change_verification_axis():
+    inc = _incident(assessment_status="MAYBE_TRUE", visibility="PUBLIC_UNVERIFIED")
+    with pytest.raises(state.InvariantError, match="I5"):
+        state.set_verification(inc, _user("CITIZEN"), "REJECTED")
+    assert inc.verification == "UNVERIFIED"
+
+
+def test_unknown_status_is_refused():
+    inc = _incident(assessment_status="MAYBE_TRUE", visibility="PUBLIC_UNVERIFIED")
+    with pytest.raises(state.InvariantError, match="unknown verification status"):
+        state.set_verification(inc, _user("VERIFICATION_OFFICER"), "MAYBE_TRUE")
+    assert inc.verification == "UNVERIFIED"

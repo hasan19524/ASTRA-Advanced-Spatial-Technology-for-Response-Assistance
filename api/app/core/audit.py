@@ -13,6 +13,7 @@ Design notes:
 """
 
 import json
+import re
 import uuid
 from typing import Any, Awaitable, Callable, Iterable, MutableMapping
 
@@ -36,6 +37,11 @@ _ACTIONS = (
     ("/auth/refresh", "auth.refresh"),
     ("/auth/logout", "auth.logout"),
     ("/incidents", "incident.create"),  # POST /api/v1/incidents (report submission)
+    ("/poll/vote", "poll.vote"),
+    ("/verify", "incident.verify"),
+    ("/reject", "incident.reject"),
+    ("/reopen", "incident.reopen"),
+    ("/auth/demo-login", "auth.demo_login"),
 )
 
 
@@ -67,15 +73,23 @@ def _action_for(method: str, path: str) -> str:
     return f"{method} {path}"
 
 
+_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I
+)
+
+
 def _resource_id(path: str) -> str | None:
-    """UUID-shaped final segment = the object the request touched."""
-    last = path.rstrip("/").rsplit("/", 1)[-1]
-    return last if len(last) == 36 and last.count("-") == 4 else None
+    """UUID-shaped segment anywhere in the path = the object the request
+    touched (e.g. /incidents/{id}/poll/vote -> the incident id)."""
+    for segment in reversed(path.rstrip("/").split("/")):
+        if segment and _UUID_RE.match(segment):
+            return segment
+    return None
 
 
 def _label_for(path: str, raw_body: bytes) -> str | None:
     """Email on login/register — the actor before any token exists."""
-    if not path.endswith(("/auth/login", "/auth/register")):
+    if not path.endswith(("/auth/login", "/auth/register", "/auth/demo-login")):
         return None
     try:
         data = json.loads(raw_body.decode("utf-8") or "{}")

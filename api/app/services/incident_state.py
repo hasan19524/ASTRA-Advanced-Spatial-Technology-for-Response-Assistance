@@ -10,9 +10,10 @@ Invariants encoded here (vision.md §B/§C/§E/§F + §10, AD-18):
       (MT reports stay on the map as UNVERIFIED — §B/§10)
   I4  poll eligibility ⇔ PUBLIC_UNVERIFIED ∧ sensitivity=PUBLIC ∧ MAYBE_TRUE
       (AD-18; a DF report never gets a poll — §C)
-  I5  verification moves UNVERIFIED → VERIFIED only, and only an
-      `incident.verify` holder may set it (append-only events — §E; the
-      matrix grants it to officers and Central Admin)
+  I5  verification moves UNVERIFIED → VERIFIED|REJECTED, and REJECTED can be
+      reopened to UNVERIFIED (Day 4, AD-23); only an `incident.verify` holder
+      may change the axis (events stay append-only — §E; the matrix grants
+      the permission to officers and Central Admin)
   I6  lifecycle closes/opens only under a Central Admin decision (§F)
 
 Nothing mutates an incident's axes outside apply_assessment() /
@@ -72,11 +73,13 @@ def apply_assessment(
     backend: str,
     reason: str,
     confidence: float | None = None,
+    model: str | None = None,
 ) -> Assessment:
     """Set the assessment axis + its derived axes; return the history row.
 
     Caller owns the session: add the returned row and commit. The incident
-    must already be flushed (assessment rows key off its id).
+    must already be flushed (assessment rows key off its id). `model` records
+    the LLM model name when an LLM backend decided (Day 4, AD-24).
     """
     if outcome not in ("DEFINITELY_FALSE", "MAYBE_TRUE"):
         raise InvariantError(
@@ -100,21 +103,48 @@ def apply_assessment(
         outcome=outcome,
         confidence=confidence,
         reason=reason,
+        model=model,
     )
+
+
+# I5 (Day 4, AD-23): legal verification-axis transitions. VERIFIED is terminal;
+# REJECTED can be REOPENED back to UNVERIFIED (reason required at the endpoint);
+# REJECTED -> VERIFIED directly is refused — that must be two auditable events.
+VERIFICATION_TRANSITIONS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("UNVERIFIED", "VERIFIED"),
+        ("UNVERIFIED", "REJECTED"),
+        ("REJECTED", "UNVERIFIED"),
+    }
+)
 
 
 def set_verification(incident: Incident, user: User, new_status: str) -> None:
     """I5: `incident.verify` holders only (verification officers per vision §E;
-    the matrix is the authorization truth); the axis is one-way (append-only)."""
-    if new_status not in ("UNVERIFIED", "VERIFIED"):
+    the matrix is the authorization truth). Day 4 (AD-23) extends the axis with
+    REJECTED + reopen — the legal pairs live in VERIFICATION_TRANSITIONS;
+    VERIFIED stays terminal and no-op changes are refused (a double-click would
+    otherwise look like two decisions in the audit trail)."""
+    if new_status not in ("UNVERIFIED", "VERIFIED", "REJECTED"):
         raise InvariantError(f"unknown verification status {new_status!r}")
-    if new_status == "VERIFIED" and not _holds(user, "incident.verify"):
+    if not _holds(user, "incident.verify"):
         raise InvariantError(
-            "I5: only ASTRA Verification Officers may mark an incident VERIFIED"
+            "I5: only ASTRA Verification Officers may change the verification axis"
         )
-    if new_status == "UNVERIFIED" and incident.verification == "VERIFIED":
+    current = incident.verification
+    if current == new_status:
         raise InvariantError(
-            "I5: verification is append-only — VERIFIED cannot become UNVERIFIED"
+            f"I5: verification is already {new_status} — no-op changes are refused"
+        )
+    if (current, new_status) not in VERIFICATION_TRANSITIONS:
+        if current == "VERIFIED":
+            raise InvariantError(
+                "I5: verification is terminal (append-only) — VERIFIED cannot "
+                f"become {new_status}"
+            )
+        raise InvariantError(
+            f"I5: illegal verification transition {current} -> {new_status} "
+            "(UNVERIFIED -> VERIFIED|REJECTED, REJECTED -> UNVERIFIED)"
         )
     incident.verification = new_status
     assert_invariants(incident)

@@ -7,6 +7,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.verification import VerificationEventOut
+
 
 class ReportOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -63,6 +65,7 @@ class IncidentCreatedOut(IncidentOut):
 class IncidentDetailOut(IncidentOut):
     reports: list[ReportOut] = []
     assessments: list[AssessmentOut] = []  # the detail page timeline
+    verification_events: list[VerificationEventOut] = []  # stripped for citizens
 
 
 class IncidentPageOut(BaseModel):

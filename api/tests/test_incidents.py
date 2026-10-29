@@ -151,7 +151,17 @@ async def test_photo_upload_saved_and_served(client):
     assert media and media.startswith("/uploads/")
     assert detail.json()["reports"][0]["source"] == "PHOTO"
 
-    served = await client.get(media)  # static route (AD-8), public by design
+    import hashlib, hmac, time
+
+    fname = media.removeprefix("/uploads/")
+    exp = int(time.time()) + 60
+    sig = hmac.new(
+        # test mirrors the server-side secret; conftest sets JWT_SECRET=test-secret
+        b"test-secret",
+        f"{fname}:{exp}".encode(),
+        hashlib.sha256,
+    ).hexdigest()
+    served = await client.get(f"{media}?exp={exp}&sig={sig}")
     assert served.status_code == 200
     assert served.content == JPEG
 
