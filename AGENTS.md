@@ -37,6 +37,24 @@ folder**. When finishing: pull first (teammate may have pushed), write your work
 - Local `.env` files are gitignored — never commit secrets. Real keys go in `.env` only.
 - If `git push` is rejected, `git pull --rebase origin main`, resolve, push again.
 
+## 🔒 Hard rules (violating these broke us on Day 3 — read before touching any doc)
+
+1. **Task files are read-only for agents.** Only the lead creates/edits/re-dates them.
+   Confusion → ask the human. Never "helpfully" rewrite, rename, or re-date a doc.
+2. **Header date = filename date = worklog date.** Take the date *from the task file itself*,
+   never from the system clock. Every task file states your exact worklog path — copy it verbatim.
+   The date-mapping table (Day N ↔ date) lives in `docs/tasks/README.md`.
+3. **Session-start ritual, every session:** `cd` to the folder containing this `AGENTS.md` →
+   `git rev-parse --show-toplevel` must end in the repo root → `git pull origin main` →
+   `git log --oneline -1` → open your task file at the path it states. Any check fails →
+   **STOP, tell the human.** Never pick a task file by "newest file dated today" heuristics.
+4. **Evidence-first worklogs:** no "done / green / verified" claim without the exact command
+   and its actual output pasted in your worklog. Mock data never counts as verification —
+   declare mock-vs-real explicitly for every feature.
+5. **UI must never claim what the system didn't do:** no "live feed" on a dead socket, no
+   filter that filters nothing, no green check you didn't run. Show the degraded state instead.
+6. A task file opening with 🩹 repair pass → execute it **fully** before starting new tasks.
+
 ## 📅 Tasks & daily work log
 
 - **`docs/tasks/<name>/<date>.md`** — the task list for that date. The lead (Hasan) writes
