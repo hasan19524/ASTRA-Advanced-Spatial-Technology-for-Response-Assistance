@@ -77,4 +77,21 @@
 - *(B)* Types generated via: `npm run contracts:sync` → `web/src/api/types.ts`
 
 ## Parking lot (ideas NOT built without discussion)
-- _(add here, never straight into code)_
+
+Open decisions raised while planning Phase 2 (2026-11-02) — **Hasan's call, not the agents'**.
+Each is written into `docs/tasks/hasan/2026-11-02.md` beside the work it affects.
+
+| # | Decision | Proposal on the table | Why it needs a human |
+|---|---|---|---|
+| PL-7 | Is skipping `IN_PROGRESS` legal on a task? | Yes — `OPEN → DONE` allowed | Changes the dispatch state machine |
+| PL-8 | Can an incident close while tasks are still open? | No — 409 listing the open task ids | Vision §F says "rescue done, bridge not repaired"; premature closure lies to the admin |
+| PL-9 | Can `response_phase` skip a step? | No — `NONE→COORDINATING→ACTIVE→RESOLVED` only | Locked axis; loosening it later is a contract break |
+| PL-10 | Are `stats/overview` counts role-scoped? | Yes — citizens get public-safe aggregates only (no HIDDEN/RESTRICTED), dept heads their department, admin+officer everything | Guessing leaks operational data to citizens (vision §10) |
+| PL-11 | Exact formula for `poll_participation_rate` | distinct voters ÷ eligible-incident count | Lubna labels the card from it — the wording must be agreed, not invented |
+| PL-12 | Mock layer fate — delete, or keep behind `NEXT_PUBLIC_USE_MOCKS=1`? | Deferred until Lubna's Day 4 push is read | Hard rule 5 forbids the UI claiming what the system didn't do |
+| PL-13 | Traffic / weather data source | Propose **omit** rather than fake | No approved free source found in `docs/research-existing-apps.md` |
+| PL-14 | Simulation damage/impact model | Not proposed | A design decision, not an implementation one |
+| PL-15 | Browser Web Speech API as the no-key voice fallback | Not proposed | Frontend tech addition — the stack is locked (AD-1) |
+| PL-16 | Alternate LLM provider if Evon exposes no chat endpoint | Not proposed | New dependency — requires discussion |
+
+_(add here, never straight into code)_

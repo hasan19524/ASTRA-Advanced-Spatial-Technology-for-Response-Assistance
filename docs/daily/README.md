@@ -15,36 +15,46 @@ docs/
 │  │  ├─ 2026-10-26.md         Day 1  ✅ done
 │  │  ├─ 2026-10-27.md         Day 2  ✅ done
 │  │  ├─ 2026-10-28.md         Day 3  ✅ done
-│  │  └─ 2026-10-29.md         Day 4  ← today's tasks
+│  │  ├─ 2026-10-29.md         Day 4  ✅ backend done (reconcile in Phase 2 Step 0)
+│  │  └─ 2026-11-02.md         Phase 2 — Module 1 closeout  ← current
 │  └─ lubna/
 │     ├─ 2026-10-26.md         missed → folded into the 27th
 │     ├─ 2026-10-27.md         Day 1+2 combined  ✅ done
 │     ├─ 2026-10-28.md         Day 3  ✅ done
-│     └─ 2026-10-29.md         Day 4  ← today's tasks (opens with 🩹 repair pass)
+│     ├─ 2026-10-29.md         Day 4  ← reconcile + write the missing worklog first
+│     └─ 2026-11-02.md         Phase 2 — Module 1 closeout  ← current
 ├─ daily/                      ← worklogs ("what happened")
 │  ├─ README.md                ← this file (worklog template lives here)
 │  ├─ hasan/
 │  │  ├─ 2026-10-26.md         Day 1  ✅ written
 │  │  ├─ 2026-10-27.md         Day 2  ✅ written
 │  │  ├─ 2026-10-28.md         Day 3  ✅ written
-│  │  └─ 2026-10-29.md         Day 4  ← filled in as Hasan works
+│  │  └─ 2026-10-29.md         Day 4  ✅ written
 │  └─ lubna/
 │     ├─ 2026-10-27.md         Day 1+2  ✅ written
 │     ├─ 2026-10-28.md         Day 3  ✅ written
-│     └─ 2026-10-29.md         Day 4  ← filled in as Lubna works
+│     └─ 2026-10-29.md         Day 4  ← MISSING — write it in Phase 2 Step 0
 ├─ architecture.md             ← locked decisions (AD-1…AD-23)
+├─ plan-phases.md              ← master plan: phases, contracts, mock-vs-real, testing
 └─ research-existing-apps.md   ← real-world precedents + data/keys
 ```
 
-## 📌 Current day
+## 📌 Current assignment
 
-**Day 4 — 2026-10-29 (Assessment + Poll + Verification):**
+**Phase 2 — Module 1 closeout (the dispatch arc)**, assigned 2026-11-02:
 
-- Hasan's tasks → [`tasks/hasan/2026-10-29.md`](../tasks/hasan/2026-10-29.md)
-- Lubna's tasks → [`tasks/lubna/2026-10-29.md`](../tasks/lubna/2026-10-29.md) (opens with 🩹 repair pass)
+- Hasan's ticket → [`tasks/hasan/2026-11-02.md`](../tasks/hasan/2026-11-02.md)
+- Lubna's ticket → [`tasks/lubna/2026-11-02.md`](../tasks/lubna/2026-11-02.md)
+- Master plan, all frozen contracts, mock-vs-real tiers, testing chain →
+  [`plan-phases.md`](../plan-phases.md)
 
-**Pull first, open exactly these paths.** Dates follow the strict Day N ↔ date table in
-[`tasks/README.md`](../tasks/README.md) — the file's own header is the law, never the system clock.
+**Days 5–7 (10-30 … 11-01) were skipped** — no files exist for them, none were created
+retroactively. Scheduling is now phase-based; see the revision note in
+[`tasks/README.md`](../tasks/README.md).
+
+**Pull first, open exactly these paths.** The ticket's own header is the law, never the system
+clock. Worklogs are written per session, dated by that session's real calendar date, at the
+path the ticket states.
 
 ## Worklog template (mandatory sections — write every one)
 

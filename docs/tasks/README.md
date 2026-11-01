@@ -38,6 +38,27 @@ tasks/
 files originally carried later dates; a path can therefore have held *different* content across
 renames — never infer content from a filename alone, and never re-date a file).
 
+---
+
+## ⚠️ Revision — 2026-11-02: days → phases
+
+**Days 5, 6 and 7 (2026-10-30 · 10-31 · 11-01) were not worked.** No task or worklog files exist
+for them, and none were created retroactively — a file that never existed is not re-dated.
+
+Scheduling now runs on **phases, continuously**, not calendar days. The table above stays for
+reading old files only; it no longer predicts anything.
+
+| | |
+|---|---|
+| **Current tickets** | [`hasan/2026-11-02.md`](hasan/2026-11-02.md) · [`lubna/2026-11-02.md`](lubna/2026-11-02.md) |
+| **Phase** | **2 — Module 1 closeout** (dispatch arc) |
+| **Master plan** | [`../plan-phases.md`](../plan-phases.md) — phases, contracts, mock-vs-real tiers, testing chain |
+| **Filename date** | The date the ticket was **assigned**, not the date it finishes. A phase ticket may span several sessions. |
+| **Worklog date** | One file per session, dated by that session's real calendar date, at the path the ticket states. |
+
+Old day-numbered files are untouched and must stay untouched. Never re-date, rename, or
+"correct" a doc — ask instead.
+
 ## Rules
 
 1. **The "Current day" pointer in `docs/daily/README.md` names today's files** — pull first,
