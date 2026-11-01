@@ -10,7 +10,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthSession } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/Button";
-import { DEMO_EMAILS, DEMO_PASSWORD, ROLE_LABELS, type Role } from "@/lib/constants";
+import { DEMO_EMAILS, ROLE_LABELS, type Role } from "@/lib/constants";
 import { useAlerts } from "@/stores/alerts";
 
 const DEMO_ROLES: Role[] = [
@@ -180,8 +180,8 @@ export default function LoginPage() {
           ))}
         </div>
         <p className="mt-2 text-[10px] text-[var(--subtle)]">
-          Seed accounts (password: {DEMO_PASSWORD}) — falls back to a local
-          session if the backend is down.
+          Seed accounts — one-click per role. Backend handles credentials
+          server-side; no password in the frontend bundle.
         </p>
       </div>
     </div>

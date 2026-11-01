@@ -3,14 +3,16 @@
  *
  * - Attaches `Authorization: Bearer <access>` when a token is supplied.
  * - One silent refresh on 401 (AD-2) then retries once.
- * - If the API is unreachable OR the endpoint is not implemented yet
- *   (backend currently only serves /auth), falls back to the in-memory
- *   mock layer so every screen renders (task 1.4). Auth never mocks —
- *   login/register always hit the real API.
+ * - Mock fallback is OFF by default. Set NEXT_PUBLIC_USE_MOCKS=1 to force
+ *   in-memory fixtures when the backend is not yet built. Without the flag,
+ *   real 404s → not-found state, 5xx/network → error state with retry.
+ * - Auth never mocks — login/register always hit the real API.
  */
 import { API_URL } from "@/lib/constants";
 import { mockRequest } from "@/lib/mocks/handlers";
 import type { ApiError } from "./types";
+
+const USE_MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS === "1";
 
 export class HttpError extends Error {
   constructor(
@@ -63,13 +65,18 @@ export async function request<T>(
   try {
     res = await doFetch(token ?? null);
   } catch {
-    // API down → mock fallback (auth must fail loudly instead)
+    // API down → mock fallback only when explicitly enabled
     if (path.startsWith("/api/v1/auth")) {
       throw new HttpError(0, {
         detail: "API unreachable — start it with: docker compose up -d",
       });
     }
-    return mockRequest<T>(path, method, body);
+    if (USE_MOCKS) {
+      return mockRequest<T>(path, method, body);
+    }
+    throw new HttpError(0, {
+      detail: "API unreachable — start it with: docker compose up -d",
+    });
   }
 
   // silent refresh once on 401 (AD-2)
@@ -79,7 +86,12 @@ export async function request<T>(
       try {
         res = await doFetch(fresh);
       } catch {
-        return mockRequest<T>(path, method, body);
+        if (USE_MOCKS) {
+          return mockRequest<T>(path, method, body);
+        }
+        throw new HttpError(0, {
+          detail: "API unreachable — start it with: docker compose up -d",
+        });
       }
     }
   }
@@ -97,11 +109,9 @@ export async function request<T>(
   }
 
   if (!res.ok) {
-    // 501/404 on a not-yet-built endpoint → serve the mock so UI keeps working
-    if (
-      res.status === 501 ||
-      (res.status === 404 && !path.startsWith("/api/v1/auth"))
-    ) {
+    // Real 404 → throw so the page renders a not-found state (never mock data).
+    // Mock fallback only when NEXT_PUBLIC_USE_MOCKS=1 is explicitly set.
+    if (USE_MOCKS && (res.status === 501 || res.status === 404)) {
       return mockRequest<T>(path, method, body);
     }
     throw new HttpError(res.status, (parsed as ApiError) ?? { detail: text });

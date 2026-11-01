@@ -21,8 +21,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   VERIFICATION_OFFICER: "Verification Officer",
 };
 
-/** seed/seed.py headline demo logins — password shared: astra-demo-2026 */
-export const DEMO_PASSWORD = "astra-demo-2026";
+/** seed/seed.py headline demo logins */
 export const DEMO_EMAILS: Record<Role, string> = {
   CENTRAL_ADMIN: "admin@astra.dev",
   DEPARTMENT_HEAD: "dephead@astra.dev",
@@ -127,6 +126,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/departments", label: "Departments", icon: "building", permission: "analytics.operational" },
   { href: "/reports", label: "Reports", icon: "file", permission: "analytics.operational" },
   { href: "/simulation", label: "Simulation", icon: "play", permission: "simulation.public" },
+  { href: "/verification", label: "Verification", icon: "shield", permission: "incident.verify" },
   { href: "/settings", label: "Settings", icon: "settings" },
 ];
 

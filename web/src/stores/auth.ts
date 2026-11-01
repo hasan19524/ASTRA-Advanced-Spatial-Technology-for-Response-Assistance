@@ -8,8 +8,7 @@
 import { create } from "zustand";
 import { request, setRefreshHandler } from "@/api/client";
 import type { LoginRequest, RegisterRequest, TokenResponse, UserOut } from "@/api/types";
-import { permissionsFor } from "@/lib/permissions";
-import { DEMO_DEPARTMENTS, DEMO_EMAILS, DEMO_PASSWORD, type Role } from "@/lib/constants";
+import { DEMO_EMAILS, type Role } from "@/lib/constants";
 
 const REFRESH_KEY = "astra.refresh_token";
 
@@ -87,31 +86,24 @@ export const useAuth = create<AuthState>((set) => ({
     }
   },
 
+  /** one-click demo login: POST /api/v1/auth/demo-login {email} (no client password) */
   async demoLogin(role) {
     set({ status: "loading", error: null });
     const email = DEMO_EMAILS[role as Role] ?? `${role.toLowerCase().replace(/_/g, ".")}@astra.dev`;
-    const department = DEMO_DEPARTMENTS[role as Role] ?? null;
     try {
-      const res = await request<TokenResponse>("/api/v1/auth/login", {
+      const res = await request<TokenResponse>("/api/v1/auth/demo-login", {
         method: "POST",
-        body: { email, password: DEMO_PASSWORD },
+        body: { email },
       });
       persistRefresh(res.refresh_token);
       set({ user: res.user, accessToken: res.access_token, status: "authenticated" });
       return true;
-    } catch {
-      // backend unreachable / not seeded yet → local session so the demo still works
-      const user: UserOut = {
-        id: `demo-${role.toLowerCase()}`,
-        email,
-        full_name: demoName(role),
-        role,
-        department,
-        permissions: permissionsFor(role),
-      };
-      persistRefresh(`demo-refresh-${role}`);
-      set({ user, accessToken: `demo-access-${role}`, status: "authenticated" });
-      return true;
+    } catch (e) {
+      set({
+        status: "error",
+        error: e instanceof Error ? e.message : "Demo login failed — is the backend up?",
+      });
+      return false;
     }
   },
 
@@ -125,20 +117,6 @@ export const useAuth = create<AuthState>((set) => ({
     if (!rt) {
       set({ hydrated: true });
       return null;
-    }
-    if (rt.startsWith("demo-refresh-")) {
-      // demo session: rebuild it without the network
-      const role = rt.replace("demo-refresh-", "");
-      const user: UserOut = {
-        id: `demo-${role.toLowerCase()}`,
-        email: DEMO_EMAILS[role as Role] ?? `${role.toLowerCase().replace(/_/g, ".")}@astra.dev`,
-        full_name: demoName(role),
-        role,
-        department: DEMO_DEPARTMENTS[role as Role] ?? null,
-        permissions: permissionsFor(role),
-      };
-      set({ user, accessToken: `demo-access-${role}`, status: "authenticated", hydrated: true });
-      return `demo-access-${role}`;
     }
     try {
       const res = await request<TokenResponse>("/api/v1/auth/refresh", {
@@ -164,17 +142,6 @@ export const useAuth = create<AuthState>((set) => ({
     set({ error: null });
   },
 }));
-
-function demoName(role: string): string {
-  const map: Record<string, string> = {
-    CITIZEN: "Asha Citizen",
-    CENTRAL_ADMIN: "Admin Central",
-    DEPARTMENT_HEAD: "Dept Head Fire",
-    RESPONSE_TEAM: "Team Member T-3",
-    VERIFICATION_OFFICER: "Officer Verify",
-  };
-  return map[role] ?? role;
-}
 
 // wire silent refresh into the fetch client (avoids circular import)
 setRefreshHandler(() => useAuth.getState().refresh());

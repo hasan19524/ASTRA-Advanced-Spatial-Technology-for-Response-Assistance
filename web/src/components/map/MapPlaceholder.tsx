@@ -12,6 +12,13 @@ const SEV_COLOR: Record<string, string> = {
   Minor: "#22c55e",
 };
 
+/** pin colour keys off verification status (vision: UNVERIFIED amber · VERIFIED green · REJECTED grey-red) */
+const VERIFICATION_COLOR: Record<string, string> = {
+  UNVERIFIED: "#f59e0b",
+  VERIFIED: "#22c55e",
+  REJECTED: "#9ca3af",
+};
+
 /** project lat/lng into the placeholder's fixed viewport (rough NCR bounds) */
 function project(lat: number, lng: number) {
   const minLat = 28.35,
@@ -92,7 +99,8 @@ export function MapPlaceholder({
           {incidents.map((i) => {
             if (i.latitude == null || i.longitude == null) return null;
             const { left, top } = project(i.latitude, i.longitude);
-            const color = SEV_COLOR[i.assessment_status === "MAYBE_TRUE" ? "Major" : "Minor"] ?? SEV_COLOR.Minor;
+            const color =
+              VERIFICATION_COLOR[i.verification ?? "UNVERIFIED"] ?? VERIFICATION_COLOR.UNVERIFIED;
             const selected = selectedId === i.id;
             return (
               <button

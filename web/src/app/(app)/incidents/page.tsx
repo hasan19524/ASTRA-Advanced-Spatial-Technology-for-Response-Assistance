@@ -1,11 +1,12 @@
 "use client";
 /**
  * Incident Management list — real API (GET /api/v1/incidents) with category /
- * assessment / verification / phase filters + pagination, plus a WS subscription
- * that prepends any new public incident as it arrives (AD-10).
+ * assessment / verification filters + real pagination (Prev/Next), plus a WS
+ * subscription that prepends any new public incident as it arrives (AD-10).
+ * Phase filter removed — backend has no `phase` param (B4).
  */
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -17,14 +18,6 @@ import type { IncidentOut } from "@/api/types";
 import { CATEGORIES } from "@/lib/constants";
 import { useAuthSession } from "@/hooks/useAuth";
 
-const PHASES = [
-  { value: "all", label: "All" },
-  { value: "NONE", label: "Reported" },
-  { value: "COORDINATING", label: "Under Verification" },
-  { value: "ACTIVE", label: "In Response" },
-  { value: "RESOLVED", label: "Resolved" },
-];
-
 const ASSESSMENTS = [
   { value: "all", label: "All" },
   { value: "UNASSESSED", label: "Unassessed" },
@@ -32,9 +25,11 @@ const ASSESSMENTS = [
   { value: "DEFINITELY_FALSE", label: "Definitely False" },
 ];
 
+const PAGE_SIZE = 20;
+
 export default function IncidentsPage() {
   const router = useRouter();
-  const { token } = useAuthSession();
+  const { token, can } = useAuthSession();
   const {
     items,
     total,
@@ -46,6 +41,7 @@ export default function IncidentsPage() {
     connectWS,
     disconnectWS,
   } = useIncidents();
+  const [offset, setOffset] = useState(0);
 
   // load on mount + whenever filters change (server-side via query params)
   useEffect(() => {
@@ -53,9 +49,10 @@ export default function IncidentsPage() {
       category: filters.category,
       assessment: filters.assessment,
       verification: filters.verification,
-      phase: filters.phase,
+      offset,
+      limit: PAGE_SIZE,
     });
-  }, [load, filters.category, filters.assessment, filters.verification, filters.phase]);
+  }, [load, filters.category, filters.assessment, filters.verification, offset]);
 
   // live-map WS: prepend fresh public incidents (AD-10)
   useEffect(() => {
@@ -88,16 +85,16 @@ export default function IncidentsPage() {
       render: (r) => <StatusBadge value={r.verification} />,
     },
     {
-      key: "phase",
-      header: "Response Phase",
-      render: (r) => <StatusBadge value={r.response_phase} />,
-    },
-    {
       key: "updated",
       header: "Updated",
       render: (r) => <span className="text-[var(--subtle)] text-[10px]">{r.updated_at}</span>,
     },
   ];
+
+  const totalPages = Math.ceil(total / PAGE_SIZE) || 1;
+  const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
+  const showingFrom = items.length > 0 ? offset + 1 : 0;
+  const showingTo = items.length > 0 ? Math.min(offset + items.length, total) : 0;
 
   return (
     <div>
@@ -105,9 +102,11 @@ export default function IncidentsPage() {
         title="Incident Management"
         subtitle={`${total} incident{total !== 1 ? "s" : ""} · live feed over WebSocket`}
         actions={
-          <Link href="/report">
-            <Button variant="primary">+ Report Incident</Button>
-          </Link>
+          can("report.create") ? (
+            <Link href="/report">
+              <Button variant="primary">+ Report Incident</Button>
+            </Link>
+          ) : undefined
         }
       />
 
@@ -115,7 +114,10 @@ export default function IncidentsPage() {
       <div className="mb-3 flex flex-wrap gap-2">
         <Select
           value={filters.category}
-          onChange={(v) => setFilter("category", v)}
+          onChange={(v) => {
+            setFilter("category", v);
+            setOffset(0);
+          }}
           options={[
             { value: "all", label: "All Categories" },
             ...CATEGORIES.map((c) => ({ value: c, label: c })),
@@ -123,23 +125,24 @@ export default function IncidentsPage() {
         />
         <Select
           value={filters.assessment}
-          onChange={(v) => setFilter("assessment", v)}
+          onChange={(v) => {
+            setFilter("assessment", v);
+            setOffset(0);
+          }}
           options={ASSESSMENTS}
         />
         <Select
           value={filters.verification}
-          onChange={(v) => setFilter("verification", v)}
+          onChange={(v) => {
+            setFilter("verification", v);
+            setOffset(0);
+          }}
           options={[
             { value: "all", label: "All Verification" },
             { value: "UNVERIFIED", label: "Pending" },
             { value: "VERIFIED", label: "Verified" },
             { value: "REJECTED", label: "Rejected" },
           ]}
-        />
-        <Select
-          value={filters.phase}
-          onChange={(v) => setFilter("phase", v)}
-          options={PHASES.filter((p) => p.value !== "all")}
         />
       </div>
 
@@ -172,7 +175,7 @@ export default function IncidentsPage() {
                     setFilter("category", "all");
                     setFilter("assessment", "all");
                     setFilter("verification", "all");
-                    setFilter("phase", "all");
+                    setOffset(0);
                   }}
                 >
                   Clear filters
@@ -181,6 +184,34 @@ export default function IncidentsPage() {
             />
           }
         />
+      )}
+
+      {/* real pagination — showing X–Y of Z with Prev / Next */}
+      {total > 0 && (
+        <div className="mt-4 flex items-center justify-between gap-4">
+          <div className="text-xs text-[var(--muted)]">
+            Showing {showingFrom}–{showingTo} of {total}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              disabled={offset === 0}
+              onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+            >
+              ← Prev
+            </Button>
+            <span className="text-xs text-[var(--muted)]">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="secondary"
+              disabled={offset + PAGE_SIZE >= total}
+              onClick={() => setOffset(offset + PAGE_SIZE)}
+            >
+              Next →
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );
