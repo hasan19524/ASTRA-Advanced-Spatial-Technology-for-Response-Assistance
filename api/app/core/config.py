@@ -42,15 +42,15 @@ class Settings(BaseSettings):
     # --- Multi-provider free LLMs (assistant + assessment, zero-cost tiers) ---
     # Groq (already the legacy default)
     groq_api_key: str = ""
-    groq_model: str = "llama-3.3-70b-versatile"
+    groq_model: str = "openai/gpt-oss-20b"
     groq_base_url: str = "https://api.groq.com/openai/v1"
     # OpenRouter (free models: :free suffix)
     openrouter_api_key: str = ""
-    openrouter_model: str = "meta-llama/llama-3.3-70b-instruct:free"
+    openrouter_model: str = "google/gemma-4-31b-it:free"
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     # NVIDIA NIM (free credits)
     nvidia_api_key: str = ""
-    nvidia_model: str = "meta/llama-3.1-8b-instruct"
+    nvidia_model: str = "google/gemma-4-31b-it"
     nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
 
     # --- Gnani voice (T3, Phase 2) ---
