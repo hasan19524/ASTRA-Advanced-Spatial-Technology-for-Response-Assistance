@@ -60,13 +60,14 @@ Every feature is classified into exactly one tier. Nothing ships unclassified.
 | `stats/overview` | T1 | dashboard KPIs hardcoded today |
 | Audit log viewer | T1 | rows written, no endpoint |
 
-**Module 2 — gated on the Gnani spike (Phase 0).**
+**Module 2 — the spike ran 2026-11-02; this table is the actual outcome (evidence §7.2).**
 
-| Feature | Spike passes | Spike fails |
+| Feature | Tier | Status |
 |---|---|---|
-| Report assessment | T3 Evon → rules (already built) | T3 rules-only |
-| Assistant chat | T3 real LLM | T4 "assistant unavailable — API key not configured" |
-| STT / TTS | T3 Prisma + Timbre | T4, unless browser Web Speech API is approved (stack change → discussion) |
+| STT (report input, assistant) | **T3** | ✅ **Prisma v2.5 confirmed live** — HTTP 200, 0.19 s e2e, accurate Hindi |
+| TTS (voice nav, spoken responses) | **T3** | ✅ **Timbre v2.5 confirmed live** — HTTP 200, 1.12 s, valid WAV |
+| Report assessment | **T3 rules-only** | `LlmBackend` is built and needs zero code change; it activates the moment the Evon scope is granted |
+| Assistant chat | **T4** | ❌ Evon returns 403 `SCOPE_NOT_ALLOWED` — key has no LLM scope. Fix is in the Gnani console, not the code. Renders `UnavailableState`, never a scripted bot |
 
 **Module 3 — mostly real and free.**
 
@@ -213,18 +214,20 @@ interface SimResultsOut {
 interface ApiError { status: number; detail: string }   // never a raw string
 interface Async<T> { data: T | null; loading: boolean; error: ApiError | null }
 
-type WsState = "idle" | "connecting" | "connected" | "reconnecting" | "offline"
+// ⚠️ Name reconciled to Lubna's shipped code in c753b32. Adopted, not invented —
+//    she already has `wsStatus` in stores/incidents.ts. Never re-shape shipped stores.
+type WsStatus = "connected" | "reconnecting" | "offline" | null   // null = never connected
 ```
 
 | Store | State (exact keys) | Actions (exact signatures) |
 |---|---|---|
 | `auth.ts` | `user: Async<UserOut>`, `accessToken: string \| null` | `login(email,pw)`, `signup(...)`, `demoLogin(email)`, `logout()`, `refresh()`, `has(p: Permission): boolean` |
-| `incidents.ts` | `items: IncidentOut[]`, `total`, `page`, `filters: IncidentFilters`, `ws`, `wsState: WsState`, `loading`, `error` | `load(reset?: boolean)`, `setFilters(f)`, `upsert(i: IncidentOut)`, `connectWs()`, `disconnectWs()` |
+| `incidents.ts` | `items: IncidentOut[]`, `total`, `page`, `filters: IncidentFilters`, `ws`, `wsStatus: WsStatus`, `loading`, `error` | `load(reset?: boolean)`, `setFilters(f)`, `upsert(i: IncidentOut)`, `connectWs()`, `disconnectWs()` |
 | `incidentDetail.ts` **NEW** | `incident: Async<IncidentDetailOut>` | `load(id: string)`, `patch(i: IncidentDetailOut)` |
 | `poll.ts` **NEW** | `poll: Async<PollOut>` | `load(incidentId: string)`, `vote(v: "genuine"\|"fake")` |
 | `verification.ts` **NEW** | `queue: IncidentOut[]`, `total`, `filters: QueueFilters`, `busy: boolean`, `error` | `loadQueue(f?)`, `verify(id, in: VerdictIn)`, `reject(id, in: VerdictIn)`, `reopen(id, in: ReopenIn)` |
 | `tasks.ts` **NEW** | `items: TaskOut[]`, `total`, `loading`, `error` | `loadByIncident(id)`, `create(in: TaskCreateIn)`, `patch(id, in: TaskPatchIn)`, `addUpdate(id, in: TaskUpdateIn)` |
-| `alerts.ts` **rework** | `items: Async<AlertOut[]>`, `prefs: AlertPrefOut[]`, `ws`, `wsState: WsState`, `unread: number` | `load()`, `loadPrefs()`, `subscribe(region)`, `unsubscribe(region)`, `connectWs()` |
+| `alerts.ts` **rework** | `items: Async<AlertOut[]>`, `prefs: AlertPrefOut[]`, `ws`, `wsStatus: WsStatus`, `unread: number` | `load()`, `loadPrefs()`, `subscribe(region)`, `unsubscribe(region)`, `connectWs()` |
 | `stats.ts` **NEW** | `stats: Async<StatsOut>` | `load()` |
 | `map.ts` | `center`, `zoom`, `layers: Record<MapLayerName, boolean>`, `route: Async<RouteOut>` | `setCenter`, `toggleLayer(l)`, `calculateRoute(in: RouteIn)` |
 | `assistant.ts` **rework** | `messages: Async<AssistantMessageOut[]>`, `conversationId: string \| null`, `busy: boolean`, `streaming: boolean` | `send(text)`, `reset()`, `handoff(text)` |
@@ -233,7 +236,7 @@ type WsState = "idle" | "connecting" | "connected" | "reconnecting" | "offline"
 **Store rules (both sides):**
 1. A store never holds a `string` for `error` — always `ApiError` or `null`.
 2. `upsert()` replaces by `id`, never appends. WS-created items must not duplicate.
-3. `wsState` is the **only** source for any "live" label in the UI. A dead socket renders
+3. `wsStatus` is the **only** source for any "live" label in the UI. A dead socket renders
    "offline", never "live".
 4. Stores never read from `lib/mocks/`.
 
@@ -306,7 +309,7 @@ Prop interfaces for the surfaces that both sides touch:
   incidents: IncidentOut[]                 // caller pre-filters PUBLIC + PUBLIC_UNVERIFIED
   route: RouteOut | null
   layers: Record<MapLayerName, boolean>
-  wsState: WsState                          // drives the live/offline label
+  wsStatus: WsStatus                          // drives the live/offline label
   onMove: (center: [number, number], zoom: number) => void
   onIncidentClick: (id: string) => void
 />
@@ -337,12 +340,15 @@ E2E proof runs green on the real stack.
 ### Phase 0 — Establish ground truth
 **Owner: Hasan.** Lubna continues her current work in parallel; nothing here blocks her.
 
+> **✅ SPIKE EXECUTED 2026-11-02 — voice is GO, Evon is blocked on account provisioning
+> (not code). Full evidence in §7.2.**
+
 | # | Task | Output |
 |---|---|---|
-| 0.1 | Pull Lubna's push, read it fully | Written critique: what's real, what's mock, what's broken |
-| 0.2 | **Gnani spike — time-boxed 90 min, hard stop** | GO/NO-GO on voice + LLM |
-| 0.3 | Decide the mock-layer policy (after reading 0.1) | Signed-off: delete, or `NEXT_PUBLIC_USE_MOCKS=1` only |
-| 0.4 | Diagnose the task module | Concrete critique + proposed redesign for your sign-off |
+| 0.1 | Pull Lubna's push, read it fully | ✅ done — `c753b32`, diagnosis in §7.1 |
+| 0.2 | **Gnani spike — time-boxed 90 min, hard stop** | ✅ **done — TTS GO · STT GO · Evon NO-GO (scope)** |
+| 0.3 | Decide the mock-layer policy (after reading 0.1) | ✅ resolved — opt-in flag, shipped in `c753b32` |
+| 0.4 | Diagnose the task module | Deferred to Phase 2 backend work |
 
 **0.2 exact commands** (from `Planning/gnani-research.md` §2):
 
@@ -452,14 +458,29 @@ This is the demo moment. It only works because the algorithm is real.
 ---
 
 ### Phase 4 — Voice & assistant
-**Gated entirely on the Phase 0 spike. Do not start until the GO/NO-GO is recorded.**
+**Gate cleared: the spike ran 2026-11-02 (§7.2). Voice is GO; the assistant is not.**
 
-**If GO:** `POST /voice/stt`, `POST /voice/tts`, `WS /ws/assistant`, `POST /assistant/handoff`
-→ assistant page, mic on the report form, TTS playback, language selector (AD-16: BCP-47 codes
-passed through untouched).
+**Voice half — build now, both halves of the stack:**
 
-**If NO-GO:** every voice feature renders `UnavailableState` with the reason. **No fake TTS,
-no scripted bot pretending to be an LLM.** Reclaim the days into Phase 3/5.
+| Endpoint | Detail |
+|---|---|
+| `POST /voice/stt` | proxy to `https://api.vachana.ai/stt/v3`. **`language_code` is required** (422 without it). Multipart, ≤60 s, WAV/MP3/OGG/FLAC/AAC/M4A. Retry once on 504 — it is transient. |
+| `POST /voice/tts` | proxy to `https://api.vachana.ai/api/v1/tts/inference`. **Post the JSON body from a UTF-8 file** (`--data-binary @file`); shell-escaping Hindi text yields a misleading `400 JSON decode error`. |
+| `GET /voice/languages` | BCP-47 passthrough per AD-16 — never hardcode a language list |
+
+- Frontend: mic on the report form (`IncidentReport.source = VOICE` slot is already reserved),
+  TTS playback for navigation and assistant replies, language selector.
+- **Key handling:** server-side only, read from `settings`. The key must never reach the client
+  bundle — `NEXT_PUBLIC_*` is a leak channel.
+
+**Assistant half — stays T4 until the Evon scope is granted:**
+
+`POST /assistant/handoff` (drafting a report into the normal pipeline) can be built now — it needs
+no LLM. `WS /ws/assistant` cannot: until the 403 is resolved it would be a scripted bot pretending
+to think, which is exactly what hard rule 5 forbids. Render `UnavailableState` with the reason.
+
+**If the scope is never granted:** voice is still fully real — that alone satisfies the
+"uses Gnani AI models" requirement, proven with latency numbers.
 
 **Assistant hard limits (vision §10):** the assistant may draft a report into the normal
 pipeline via `/assistant/handoff`. It may never verify, may never dispatch.
@@ -531,10 +552,136 @@ never re-dated. The lead creates them; agents treat them as read-only.
 
 | # | Decision | Why I won't decide it |
 |---|---|---|
-| O1 | Mock layer: delete, or keep behind `NEXT_PUBLIC_USE_MOCKS=1`? | Deferred until Lubna's push lands and I've read her fix |
-| O2 | Task module: what's actually wrong with the shape? | Deferred until her push lands; needs a real diagnosis first |
+| ~~O1~~ | ~~Mock layer: delete, or keep behind `NEXT_PUBLIC_USE_MOCKS=1`?~~ | **RESOLVED 2026-11-02** — Lubna shipped it opt-in in `c753b32` (`client.ts` L15/L114). Shipped code wins. |
+| O2 | Task module: what's actually wrong with the shape? | Still open — Phase 2 backend work |
 | O3 | Traffic / weather sources | No approved free source; proposing omit rather than fake |
 | O4 | Simulation damage model | A design decision, not an implementation one |
 | O5 | Browser Web Speech API as the no-key voice fallback | It's a frontend tech addition — the stack is locked (AD-1) |
 | O6 | Another LLM provider for the assistant if Evon exposes no chat endpoint | Same — new dependency, needs discussion |
 | O7 | Is `docs/plan-phases.md` the right home for this, or does it belong in `contracts/requests.md`'s Parking Lot? | Shared-doc placement is a team convention call |
+
+---
+
+## 7. Reconciliation log — what actually landed
+
+Each entry records what a push contained versus what the plan assumed. **Shipped code always
+wins over this document.** When they disagree, the plan is edited — never the other way round.
+
+### 2026-11-02 — Lubna's Day 4 (`c753b32`) vs. this plan's assumption
+
+The plan was written assuming her Day 4 work had landed. It did — 973 insertions across 12
+files, with a worklog. Diagnosis below.
+
+**Confirmed landed (assumption correct):**
+
+| Item | Evidence |
+|---|---|
+| B1 mock fallback now opt-in | `client.ts` L15 `USE_MOCKS`, L114 gates on `USE_MOCKS && (501 \|\| 404)` |
+| B2 WS socket identity check | shipped in `stores/incidents.ts` |
+| B3 backoff reconnect + 4401 handling | `wsStatus` transitions, `scheduleReconnect` |
+| B4 dead Phase filter removed | incidents page |
+| B8 real Prev/Next pagination | incidents page |
+| B9 `can("report.create")` gate restored | incidents page |
+| Poll card on detail | `incidents/[id]/page.tsx` |
+| Officer queue `/verification` | new page |
+| Investigation view + verdict panel + reopen | `incidents/[id]/page.tsx` |
+| Verification timeline, citizen-stripped | `incidents/[id]/page.tsx` |
+| `incident.updated` → `replace()` (no dupes) | `stores/incidents.ts` |
+| Server-side demo login, `DEMO_PASSWORD` deleted | `auth.ts`, `constants.ts` |
+| Day 4 worklog written | `docs/daily/lubna/2026-10-29.md` |
+
+**🔴 Gap 1 — no error boundary exists. This is the demo-breaker, still open.**
+
+`B1` was specified as two halves: (a) stop the mock layer swallowing real 404s, and (b) render
+a *typed not-found state*. Half (a) is done properly. Half (b) is not:
+
+```
+Get-ChildItem -Recurse web\src -Filter '*.tsx' |
+  Where-Object { $_.Name -match '^error|^not-found|^global-error' }
+→ (empty) — no error.tsx, no not-found.tsx, no global-error.tsx anywhere
+```
+
+So `HttpError` now throws correctly — and **nothing in the render tree catches it**. Visiting
+`/incidents/<random-uuid>` still falls through to Next.js's default handler. The white screen
+was moved, not closed. Tracked as **R1** in both Phase 2 tickets.
+
+**🟠 Gap 2 — Day 4 is unverified on the real stack.**
+
+Docker's daemon would not start on Lubna's machine. Her own gates say so honestly
+(`next start` smoke and the live trust arc are both unticked). `npm run build` clean is **not**
+proof the pages work. Docker *does* run on Hasan's machine (server 29.8.1) — so the Phase 2
+E2E gate can be executed there, and her machine's Docker needs fixing as a real environment
+task, not a recurring surprise.
+
+**🟠 Gap 3 — attachment-surface mismatch (caught before it cost anything).**
+
+This plan originally specified `wsState` / `"idle" | "connecting" | ...`. Her shipped code is
+`wsStatus` / `"connected" | "reconnecting" | "offline" | null`. **The plan was edited to match
+hers** — she wrote it first, and re-shaping a shipped store to satisfy a document would be
+backwards. §2.2 now reflects reality. This is precisely the class of drift this document exists
+to catch; it was caught in a diff instead of on demo day.
+
+**🟠 Gap 4 — presentational components aren't separated yet.**
+
+`web/src/components/` still has only `auth/ layout/ map/ ui/`. No `poll/` or `verify/` —
+Day 4's features were inlined into pages (`incidents/[id]/page.tsx` grew 396 lines). Harmless
+now, but the Phase 2 tickets ask for `components/task/` and `components/alert/` as
+props-only components **specifically so the next merge attaches without a conversation**.
+Please build them that way; if inlining is genuinely faster, say so in the worklog and this
+plan gets updated instead.
+
+### 7.2 — Phase 0 Gnani spike: actual results (2026-11-02)
+
+Key supplied by Hasan, stored in `code/.env` (gitignored, never committed) with placeholders in
+`api/.env.example`. **Status at time of writing: registered but unverified.** This section is
+the verification.
+
+**What was run, and what came back:**
+
+| # | Call | Result | Latency |
+|---|---|---|---|
+| 1 | `POST /api/v1/tts/inference` (Timbre v2.5, `hi-IN`, voice `Nalini`) | **HTTP 200** → **460,844 bytes**, magic `RIFF` = valid WAV | **1.12 s** |
+| 2 | `POST /stt/v3` with *that same WAV* (`language_code=hi-IN`) | **HTTP 200** → transcript **exactly** the input text | **1.49 s** (processing 0.17 s, e2e **0.19 s**) |
+| 3 | `POST /stt/v3` without `language_code` | **HTTP 422** `Field required` — the field is mandatory | 1.27 s |
+| 4 | First STT attempt | **HTTP 504** gateway timeout | 6.11 s — **transient, succeeded on retry** |
+| 5 | `POST /v1/chat/completions` (Evon) + 5 sibling paths | **HTTP 403** `SCOPE_NOT_ALLOWED: Service 'None' not in allowed scopes` | ~0.3 s |
+| 6 | Same + header/query service hints (`X-Service`, `X-API-Service`, `?service=`, `?svc=`) | **HTTP 403, byte-identical error** | ~0.3 s |
+
+**STT round-trip transcript (call 2) — proof it is real, not a stub:**
+```
+sent:      "Namaste, main ASTRA hoon. Delhi NCR emergency response platform."  (synthesised TTS)
+returned:  "नमस्ते, मैं आस्ट्रा हूँ, दिल्ली एनसीआर इमरजेंसी रिस्पॉन्स प्लेटफॉर्म।"
+model:     prisma-v2.5   processing_time: 0.172 s   end_to_end_latency: 0.193 s
+```
+
+**Two false readings, recorded so nobody repeats them:**
+- The first TTS call returned **400 `JSON decode error at body -> 1`**. That was *our* shell
+  mangling the UTF-8 payload, not their API. Writing the body to a file and posting with
+  `--data-binary @file` fixed it immediately. **If you get a JSON decode error, check your
+  client encoding before blaming the API.**
+- The first STT call returned **504**. It is transient — the identical request succeeded on
+  retry. **Retry STT before reporting a failure.**
+
+**Verdict — the §1 Module 2 classification table changes as follows:**
+
+| Feature | Before spike | **After spike** |
+|---|---|---|
+| Voice input for reports (STT) | T4 / unknown | **T3 — CONFIRMED REAL, build it** |
+| Voice navigation + spoken responses (TTS) | T4 / unknown | **T3 — CONFIRMED REAL, build it** |
+| Report assessment (LLM path) | T3 with rules fallback | **T3 rules-only for now** — `LlmBackend` lights up with no code change once scope is granted |
+| Assistant chat (Evon) | unknown | **T4 until provisioning is fixed** |
+
+**The Evon 403 is account provisioning, not code.** `Service 'None'` is identical across every
+header and query variant tried, which means the server derives scope from the key itself, not
+from anything in the request. **Action for Hasan:** log into app.gnani.ai/voice, open the key's
+scopes/services, and enable the LLM (Evon) service — or ask Gnani whether Evon API access needs
+a different tier. `docs.gnani.ai/llms.txt` is the index to check for the correct scope name.
+
+**Consequence for planning:** Module 2's *voice half* is unblocked and should move forward.
+The *assistant* stays T4 until the scope question is answered — and T4 means it renders
+`UnavailableState`, never a scripted bot pretending to think.
+
+> 🔐 **Security note:** this key was pasted in plaintext into a chat. It now lives only in
+> `.env`, which is gitignored and confirmed untracked by git (`git ls-files .env` → not found).
+> Still, treat it as exposed — **rotate it in the Gnani console** once the Evon scope is
+> resolved, and never copy it into `api/.env.example`, a commit, or a worklog.

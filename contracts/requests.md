@@ -91,7 +91,10 @@ Each is written into `docs/tasks/hasan/2026-11-02.md` beside the work it affects
 | PL-12 | Mock layer fate — delete, or keep behind `NEXT_PUBLIC_USE_MOCKS=1`? | Deferred until Lubna's Day 4 push is read | Hard rule 5 forbids the UI claiming what the system didn't do |
 | PL-13 | Traffic / weather data source | Propose **omit** rather than fake | No approved free source found in `docs/research-existing-apps.md` |
 | PL-14 | Simulation damage/impact model | Not proposed | A design decision, not an implementation one |
-| PL-15 | Browser Web Speech API as the no-key voice fallback | Not proposed | Frontend tech addition — the stack is locked (AD-1) |
-| PL-16 | Alternate LLM provider if Evon exposes no chat endpoint | Not proposed | New dependency — requires discussion |
+| PL-15 | Browser Web Speech API as the no-key voice fallback | **Now moot** — Gnani STT/TTS confirmed live 2026-11-02 (plan §7.2). Real provider beats a browser fallback. | Would have been a frontend tech addition; no longer needed |
+| PL-16 | Alternate LLM provider if Evon exposes no chat endpoint | Evon does expose the endpoint — it returns 403 `SCOPE_NOT_ALLOWED`, not 404. **Fix the key's scope first**; only then decide whether a second provider is wanted. | New dependency — requires discussion |
+
+**Action item (not a decision — needs Hasan's hand, not his opinion):**
+| PL-17 | Gnani key has **no Evon/LLM scope** | Evidence: `POST /v1/chat/completions` → 403 `SCOPE_NOT_ALLOWED: Service 'None' not in allowed scopes`, identical across 6 header/query variants → the scope comes from the key, not the request. **Fix:** log into app.gnani.ai/voice → key settings → enable the LLM/Evon service, or ask Gnani which tier exposes Evon. Until then the assistant is T4. Also **rotate the key** — it was pasted in plaintext. | Proven, not opined — see `docs/plan-phases.md` §7.2 |
 
 _(add here, never straight into code)_
