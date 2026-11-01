@@ -371,7 +371,7 @@ Nothing below is open any more. They are law for both sides; the matching **AD e
 | PL-16 | Alternate LLM provider | **Held** until PL-17 resolves |
 | PL-17 | Evon scope | 🟡 **Hasan enabling it now** — spike re-runs immediately after; pass → assistant goes T4 → real same session |
 
-**Working now:** Phase 2 backend (Hasan) — shipped 2026-11-02 (3312b41 + worklog); Playwright + Vitest (Lubna, inside Phase 2). Voice proxies live; Evon stays T4 (PL-17).
+**Working now:** Phase 2 backend (Hasan) — shipped 2026-11-02 (3312b41 + worklog); Playwright + Vitest (Lubna, inside Phase 2). Voice proxies live; assistant LLM = Groq (hybrid, PL-17 resolved).
 
 ### Phase 0 — Establish ground truth
 **Owner: Hasan.** Lubna continues her current work in parallel; nothing here blocks her.

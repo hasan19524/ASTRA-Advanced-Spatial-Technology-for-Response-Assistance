@@ -39,6 +39,20 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://api.groq.com/openai/v1"  # OpenAI-compatible
     llm_timeout_seconds: float = 8.0
 
+    # --- Multi-provider free LLMs (assistant + assessment, zero-cost tiers) ---
+    # Groq (already the legacy default)
+    groq_api_key: str = ""
+    groq_model: str = "llama-3.3-70b-versatile"
+    groq_base_url: str = "https://api.groq.com/openai/v1"
+    # OpenRouter (free models: :free suffix)
+    openrouter_api_key: str = ""
+    openrouter_model: str = "meta-llama/llama-3.3-70b-instruct:free"
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    # NVIDIA NIM (free credits)
+    nvidia_api_key: str = ""
+    nvidia_model: str = "meta/llama-3.1-8b-instruct"
+    nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
+
     # --- Gnani voice (T3, Phase 2) ---
     gnani_api_key: str = ""
     gnani_base_url: str = "https://api.vachana.ai"
