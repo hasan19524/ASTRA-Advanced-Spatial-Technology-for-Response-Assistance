@@ -49,3 +49,4 @@ Thumbs.db
 # --- Generated artifacts (rebuild with contracts:sync) ---
 # contracts/openapi.json is COMMITTED (it is the law) — do not ignore it
 contracts/types.ts
+pytest_full.txt
