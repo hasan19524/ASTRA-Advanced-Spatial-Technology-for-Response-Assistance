@@ -30,6 +30,7 @@ P = {
     "department.view_own": "View own department's incidents/resources",
     "task.view": "View a response task's details (scoped to own department)",
     "task.assign": "Assign response teams to tasks",
+    "task.create": "Create a response task against an incident",
     "progress.update": "Report progress to Central Admin",
     # response team
     "task.update": "Update own assigned task status",
@@ -40,6 +41,7 @@ P = {
     "alert.manage": "Publish alerts and notifications",
     "analytics.operational": "Access operational/historical analytics",
     "audit.read": "Read audit logs",
+    "stats.view": "View operational stats (role-scoped)",
     "simulation.operational": "Run operational-mode simulations",
     # shared operational visibility
     "map.view_operational": "See response-team locations and operational layers",
@@ -62,15 +64,18 @@ ROLE_PERMISSIONS: dict[Role, set[str]] = {
         "incident.view_restricted",
         "map.view_public",
         "analytics.operational",
+        "stats.view",
     },
     Role.DEPARTMENT_HEAD: CITIZEN_PERMS
     | {
         "department.view_own",
         "task.view",
         "task.assign",
+        "task.create",
         "progress.update",
         "map.view_operational",
         "analytics.operational",
+        "stats.view",
     },
     Role.RESPONSE_TEAM: CITIZEN_PERMS
     | {
@@ -86,12 +91,14 @@ ROLE_PERMISSIONS: dict[Role, set[str]] = {
         "department.view_own",
         "task.view",
         "task.assign",
+        "task.create",
         "progress.update",
         "incident.coordinate",
         "incident.close",
         "alert.manage",
         "analytics.operational",
         "audit.read",
+        "stats.view",
         "simulation.operational",
         "map.view_operational",
     },

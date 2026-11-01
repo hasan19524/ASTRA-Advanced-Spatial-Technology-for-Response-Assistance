@@ -169,3 +169,41 @@ def set_lifecycle(incident: Incident, user: User, new_lifecycle: str) -> None:
     except InvariantError:
         incident.lifecycle = previous
         raise
+
+# I7 (Phase 2, PL-9): response_phase is Central Admin-owned and STRICT.
+# Legal moves are one step forward only: NONE -> COORDINATING -> ACTIVE -> RESOLVED.
+# Skipping (NONE -> ACTIVE) and any backwards move -> InvariantError -> 409.
+RESPONSE_PHASE_TRANSITIONS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("NONE", "COORDINATING"),
+        ("COORDINATING", "ACTIVE"),
+        ("ACTIVE", "RESOLVED"),
+    }
+)
+
+
+def set_response_phase(incident: Incident, user: User, new_phase: str) -> None:
+    """I7: `incident.coordinate` holders (Central Admin) only; strict forward steps."""
+    if new_phase not in ("NONE", "COORDINATING", "ACTIVE", "RESOLVED"):
+        raise InvariantError(f"unknown response_phase {new_phase!r}")
+    if not _holds(user, "incident.coordinate"):
+        raise InvariantError(
+            "I7: only the Central Admin may change the response phase (vision sec F)"
+        )
+    current = incident.response_phase
+    if current == new_phase:
+        raise InvariantError(
+            f"response_phase is already {new_phase} - no-op changes are refused"
+        )
+    if (current, new_phase) not in RESPONSE_PHASE_TRANSITIONS:
+        raise InvariantError(
+            f"illegal response_phase transition {current} -> {new_phase} "
+            "(NONE -> COORDINATING -> ACTIVE -> RESOLVED, one step at a time)"
+        )
+    previous = incident.response_phase
+    incident.response_phase = new_phase
+    try:
+        assert_invariants(incident)
+    except InvariantError:
+        incident.response_phase = previous
+        raise
