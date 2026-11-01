@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse
 from app.core.audit import AuditMiddleware
 from app.core.config import settings
 from app.core.database import dispose
-from app.routers import alerts, audit, auth, coordination, incidents, map_ws, poll, stats, tasks, verification
+from app.routers import alerts, audit, auth, coordination, incidents, map_ws, poll, stats, tasks, verification, voice
 from app.services.incident_service import UPLOADS_DIR
 
 
@@ -56,6 +56,7 @@ app.include_router(alerts.router, prefix="/api/v1")
 app.include_router(alerts.ws_router)
 app.include_router(stats.router, prefix="/api/v1")
 app.include_router(audit.router, prefix="/api/v1")
+app.include_router(voice.router, prefix="/api/v1")
 # live map channel — no /api/v1 prefix (frozen Day 3 contract, AD-10 query auth)
 app.include_router(map_ws.router)
 

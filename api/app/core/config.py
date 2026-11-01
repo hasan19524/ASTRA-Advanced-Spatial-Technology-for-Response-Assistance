@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://api.groq.com/openai/v1"  # OpenAI-compatible
     llm_timeout_seconds: float = 8.0
 
+    # --- Gnani voice (T3, Phase 2) ---
+    gnani_api_key: str = ""
+    gnani_base_url: str = "https://api.vachana.ai"
+
     # --- Demo affordance (Day 4, audit S1) — NEVER enable outside the demo ---
     demo_mode: bool = False  # DEMO_MODE=true enables POST /auth/demo-login
     demo_password: str = "astra-demo-2026"  # server-side only; never sent to clients
