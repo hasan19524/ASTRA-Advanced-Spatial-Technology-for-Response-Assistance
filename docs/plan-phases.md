@@ -337,6 +337,24 @@ Each phase is a **vertical slice**: backend endpoint → contract → store → 
 Both people work the same phase at the same time, on their own side. A phase is done when its
 E2E proof runs green on the real stack.
 
+### Status board — 2026-11-02, after `732a3c6`
+
+| Phase | Scope | State | Next owner |
+|---|---|---|---|
+| **0** | Ground truth: pull+diagnose, Gnani spike, mock policy | ✅ **DONE** | — |
+| **1** | Interface freeze (contracts + store + prop shapes) | 🟡 **shapes published in §2**; `openapi.json` regenerates with Phase 2 endpoints | Hasan |
+| **2** | **Module 1 closeout — dispatch arc** (tasks, close/phase, alerts, stats, audit) | 🔴 **NOT STARTED** — both tickets live, zero endpoints built | **both, now** |
+| **3** | Maps + routing (Geofabrik clip approved, Leaflet, Dijkstra) | 🔴 not started | Hasan imports graph · Lubna replaces `MapPlaceholder` |
+| **4** | Voice + assistant | 🟢 **voice UNBLOCKED — spike confirmed GO** (§7.2). Assistant blocked on PL-17 | Hasan builds `voice/stt`+`voice/tts` · Lubna adds the mic |
+| **5** | Simulations | 🔴 not started · 🚫 damage model undecided (PL-14) | blocked on a human decision |
+| **6** | Dashboards, seed world, consistency, rehearsal | 🔴 not started | — |
+
+**Immediate critical path: R1 (no error boundary) → Phase 2.** Nothing else is demo-breaking.
+
+**Open decisions blocking work:** PL-7 task transitions · PL-8 close-with-open-tasks ·
+PL-9 phase skipping · PL-10 stats scoping · PL-11 poll rate wording · PL-14 simulation model ·
+PL-17 Gnani Evon scope (action, not opinion).
+
 ### Phase 0 — Establish ground truth
 **Owner: Hasan.** Lubna continues her current work in parallel; nothing here blocks her.
 
@@ -605,13 +623,30 @@ So `HttpError` now throws correctly — and **nothing in the render tree catches
 `/incidents/<random-uuid>` still falls through to Next.js's default handler. The white screen
 was moved, not closed. Tracked as **R1** in both Phase 2 tickets.
 
-**🟠 Gap 2 — Day 4 is unverified on the real stack.**
+**🟠 Gap 2 — Day 4 is now verified at the API layer (cleared 2026-11-02, `732a3c6`).**
 
-Docker's daemon would not start on Lubna's machine. Her own gates say so honestly
-(`next start` smoke and the live trust arc are both unticked). `npm run build` clean is **not**
-proof the pages work. Docker *does* run on Hasan's machine (server 29.8.1) — so the Phase 2
-E2E gate can be executed there, and her machine's Docker needs fixing as a real environment
-task, not a recurring surprise.
+Docker's daemon was fixed by launching `Docker Desktop.exe` **and starting WSL2 Ubuntu first**.
+Record that — it is the fix, not luck. Her verified chain: citizen login → `POST /api/v1/incidents`
+201 → `GET` list shows the report → WS `incident.created` delivered. WS delivery itself ~1–2 ms;
+total POST+WS ~2.1 s from Docker-on-Windows WSL2 I/O overhead (**infrastructure, not code** —
+worth knowing before anyone optimises the wrong thing).
+
+**Still open after `732a3c6`:**
+
+- **🔴 R1 — the error boundary still does not exist.** Re-checked after the pull:
+  `Get-ChildItem -Recurse web\src -Filter '*.tsx' | Where-Object { $_.Name -match '^error|^not-found|^global-error' }`
+  → **empty**. This is now the single highest-risk item on the board. Her own B1 specification
+  asked for both halves; half (a) shipped, half (b) has not. **Top of her Phase 2 ticket.**
+- **🟠 The browser trust arc is still unproven.** What she verified was the *backend* chain
+  (HTTP + WS). Nobody has yet driven `report → vote → officer verifies → pin flips` **in a
+  browser**, which is the thing the demo actually shows. `next start` smoke also dropped out of
+  her gate list. Phase 2's E2E gate covers both.
+- **🟠 Her Day 4 worklog contradicts itself again** — §0.5 says "BLOCKED" while Blockers says
+  "Resolved"; two `## Gates at EOD` sections (L70 and L95); "In progress" still lists the
+  re-verify that has since succeeded. Same stale-info failure that cost a day on Day 3
+  (daily/README rule 3). Cleanup is a Phase 2 Step 0 item.
+- **🟠 Day 4 ticket: only 2 boxes ticked** although features 1–6 shipped. Bookkeeping, but an
+  unticked ticket reads as incomplete to whoever pulls next.
 
 **🟠 Gap 3 — attachment-surface mismatch (caught before it cost anything).**
 
