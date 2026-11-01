@@ -78,23 +78,24 @@
 
 ## Parking lot (ideas NOT built without discussion)
 
-Open decisions raised while planning Phase 2 (2026-11-02) — **Hasan's call, not the agents'**.
-Each is written into `docs/tasks/hasan/2026-11-02.md` beside the work it affects.
+Decisions raised while planning Phase 2 — **all resolved 2026-11-02 by Hasan**. Recorded here so
+the choice survives; the matching AD entries land in `docs/architecture.md` alongside the code
+that implements them (an AD documents something that is *built*, not merely intended).
 
-| # | Decision | Proposal on the table | Why it needs a human |
+| # | Decision | **RESOLUTION** | Why it needed a human |
 |---|---|---|---|
-| PL-7 | Is skipping `IN_PROGRESS` legal on a task? | Yes — `OPEN → DONE` allowed | Changes the dispatch state machine |
-| PL-8 | Can an incident close while tasks are still open? | No — 409 listing the open task ids | Vision §F says "rescue done, bridge not repaired"; premature closure lies to the admin |
-| PL-9 | Can `response_phase` skip a step? | No — `NONE→COORDINATING→ACTIVE→RESOLVED` only | Locked axis; loosening it later is a contract break |
-| PL-10 | Are `stats/overview` counts role-scoped? | Yes — citizens get public-safe aggregates only (no HIDDEN/RESTRICTED), dept heads their department, admin+officer everything | Guessing leaks operational data to citizens (vision §10) |
-| PL-11 | Exact formula for `poll_participation_rate` | distinct voters ÷ eligible-incident count | Lubna labels the card from it — the wording must be agreed, not invented |
-| PL-12 | Mock layer fate — delete, or keep behind `NEXT_PUBLIC_USE_MOCKS=1`? | Deferred until Lubna's Day 4 push is read | Hard rule 5 forbids the UI claiming what the system didn't do |
-| PL-13 | Traffic / weather data source | Propose **omit** rather than fake | No approved free source found in `docs/research-existing-apps.md` |
-| PL-14 | Simulation damage/impact model | Not proposed | A design decision, not an implementation one |
-| PL-15 | Browser Web Speech API as the no-key voice fallback | **Now moot** — Gnani STT/TTS confirmed live 2026-11-02 (plan §7.2). Real provider beats a browser fallback. | Would have been a frontend tech addition; no longer needed |
-| PL-16 | Alternate LLM provider if Evon exposes no chat endpoint | Evon does expose the endpoint — it returns 403 `SCOPE_NOT_ALLOWED`, not 404. **Fix the key's scope first**; only then decide whether a second provider is wanted. | New dependency — requires discussion |
+| PL-7 | Is skipping `IN_PROGRESS` legal on a task? | ✅ **YES.** `OPEN → IN_PROGRESS → DONE`, plus `OPEN → DONE` direct. **Any backwards move → 409.** Forward is allowed because real dispatch skips steps; backwards is what actually lies. | Changed the dispatch state machine |
+| PL-8 | Can an incident close while tasks are still open? | ✅ **NO.** `POST /incidents/{id}/close` → **409 returning the open task ids**; the UI blocks and lists them. Vision §F: rescue done ≠ bridge repaired. | Premature closure would lie to the admin |
+| PL-9 | Can `response_phase` skip a step? | ✅ **NO.** Strict `NONE → COORDINATING → ACTIVE → RESOLVED`, one step, never backwards. Skips and regressions → 409. | Locked axis; loosening it later is a contract break |
+| PL-10 | Are `stats/overview` counts role-scoped? | ✅ **YES.** Citizens: public-safe aggregates only (no `hidden`, no `restricted`). Dept head: own department. Admin + officer: everything. | Guessing leaks operational data to citizens (vision §10) |
+| PL-11 | Exact formula for `poll_participation_rate` | ✅ **distinct voters ÷ eligible-incident count.** Caption Lubna ships: *"Poll participation across eligible incidents."* | The label must be agreed, not invented |
+| PL-12 | Mock layer fate — delete, or keep behind `NEXT_PUBLIC_USE_MOCKS=1`? | ✅ **RESOLVED by shipped code** — Lubna made it opt-in in `c753b32` (`client.ts` L15/L114). Shipped code wins. | Hard rule 5 forbids a UI claiming what the system didn't do |
+| PL-13 | Traffic / weather data source | ✅ **OMIT.** No approved free source in `docs/research-existing-apps.md`; faking weather would violate hard rule 5. Closures are real (our own incidents) and stay. | Better an honest gap than invented data |
+| PL-14 | Simulation damage/impact model | ✅ **Simple documented heuristics** — per-category damage/cost factors × affected population from seeded NCR data. Deterministic, explainable, **visibly labelled an estimate, with its factors shown in the UI**. | Was a design decision, now made |
+| PL-15 | Browser Web Speech API as the no-key voice fallback | ✅ **MOOT** — Gnani STT/TTS confirmed live 2026-11-02 (plan §7.2). A real provider beats a browser fallback. | Would have been a frontend tech addition |
+| PL-16 | Alternate LLM provider if Evon fails | ⏸ **HELD until PL-17 resolves.** Don't add a dependency before knowing whether we need one. Evon returns 403, not 404 — the endpoint exists. | New dependency — requires discussion |
 
-**Action item (not a decision — needs Hasan's hand, not his opinion):**
-| PL-17 | Gnani key has **no Evon/LLM scope** | Evidence: `POST /v1/chat/completions` → 403 `SCOPE_NOT_ALLOWED: Service 'None' not in allowed scopes`, identical across 6 header/query variants → the scope comes from the key, not the request. **Fix:** log into app.gnani.ai/voice → key settings → enable the LLM/Evon service, or ask Gnani which tier exposes Evon. Until then the assistant is T4. Also **rotate the key** — it was pasted in plaintext. | Proven, not opined — see `docs/plan-phases.md` §7.2 |
+**Action item in progress (not a decision — needs Hasan's hand, not his opinion):**
+| PL-17 | Gnani key has **no Evon/LLM scope** | Evidence: `POST /v1/chat/completions` → 403 `SCOPE_NOT_ALLOWED: Service 'None' not in allowed scopes`, identical across 6 header/query variants → the scope comes from the key, not the request. **Status 2026-11-02: Hasan enabling the LLM/Evon service in the Gnani console now; spike re-runs immediately after.** If it passes, the assistant moves T4 → real in the same session and PL-16 stays cancelled. Until then the assistant is T4 — never a scripted bot. Also **rotate the key** — it was pasted in plaintext. | Proven, not opined — see `docs/plan-phases.md` §7.2 |
 
 _(add here, never straight into code)_

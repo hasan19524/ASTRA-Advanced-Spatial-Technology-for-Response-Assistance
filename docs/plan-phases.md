@@ -351,9 +351,27 @@ E2E proof runs green on the real stack.
 
 **Immediate critical path: R1 (no error boundary) → Phase 2.** Nothing else is demo-breaking.
 
-**Open decisions blocking work:** PL-7 task transitions · PL-8 close-with-open-tasks ·
-PL-9 phase skipping · PL-10 stats scoping · PL-11 poll rate wording · PL-14 simulation model ·
-PL-17 Gnani Evon scope (action, not opinion).
+### ✅ Decisions locked — 2026-11-02, all nine answered
+
+Nothing below is open any more. They are law for both sides; the matching **AD entries land in
+`docs/architecture.md` alongside the code that implements them** (an AD documents something
+*built*, not merely intended). Full record in `contracts/requests.md` PL-7…PL-17.
+
+| # | Decision | Resolution |
+|---|---|---|
+| PL-7 | Task transitions | `OPEN→IN_PROGRESS→DONE` **plus** `OPEN→DONE` direct. Backwards → **409** |
+| PL-8 | Close with open tasks | **Refused → 409** returning the open task ids; UI blocks and lists them |
+| PL-9 | `response_phase` skipping | **Strict** `NONE→COORDINATING→ACTIVE→RESOLVED`, one step, never backwards → 409 |
+| PL-10 | Stats scoping | **Role-scoped**: citizen = public-safe only · dept head = own dept · admin+officer = all |
+| PL-11 | `poll_participation_rate` | **distinct voters ÷ eligible-incident count** — caption *"Poll participation across eligible incidents."* |
+| PL-12 | Mock layer | Resolved by shipped code — opt-in `NEXT_PUBLIC_USE_MOCKS=1` (`c753b32`) |
+| PL-13 | Traffic / weather | **Omit** — honest gap beats invented data. Closures are real and stay |
+| PL-14 | Simulation model | **Simple documented heuristics**: per-category factors × affected population from seeded NCR data, labelled an estimate with factors shown in the UI |
+| PL-15 | Browser voice fallback | **Moot** — Gnani STT/TTS confirmed live |
+| PL-16 | Alternate LLM provider | **Held** until PL-17 resolves |
+| PL-17 | Evon scope | 🟡 **Hasan enabling it now** — spike re-runs immediately after; pass → assistant goes T4 → real same session |
+
+**Working now:** Phase 2 backend (Hasan) · Playwright + Vitest (Lubna, inside Phase 2).
 
 ### Phase 0 — Establish ground truth
 **Owner: Hasan.** Lubna continues her current work in parallel; nothing here blocks her.
