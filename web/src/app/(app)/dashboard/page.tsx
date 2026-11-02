@@ -19,7 +19,7 @@ import { mockActivity, mockStats, mockTasks, mockTeams } from "@/lib/mocks/fixtu
 import { ROLE_LABELS, type Role } from "@/lib/constants";
 
 export default function DashboardPage() {
-  const { user, can } = useAuthSession();
+  const { user, can, token } = useAuthSession();
   const { items, load, loading, error } = useIncidents();
   const [tick, setTick] = useState(0);
 
@@ -40,10 +40,10 @@ export default function DashboardPage() {
     : new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 
   useEffect(() => {
-    void load();
+    void load({}, token);
     const t = setInterval(() => setTick((v) => v + 1), 30_000);
     return () => clearInterval(t);
-  }, [load]);
+  }, [load, token]);
 
   const role = (user?.role ?? "CITIZEN") as Role;
   const recent = useMemo(() => items.slice(0, 5), [items]);

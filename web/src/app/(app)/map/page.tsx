@@ -29,8 +29,8 @@ export default function LiveMapPage() {
   const { token } = useAuthSession();
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void load({}, token);
+  }, [load, token]);
 
   useEffect(() => {
     connectWS(token);

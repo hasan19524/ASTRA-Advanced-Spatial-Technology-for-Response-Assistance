@@ -30,7 +30,7 @@ interface PollData {
 export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) {
   const params = use(props.params);
   const id = params.id;
-  const { selected, loadOne, loading, error } = useIncidents();
+  const { selected, loadOne, loading, error, notFound } = useIncidents();
   const { can, token } = useAuthSession();
 
   // --- public poll (Day 4) ---
@@ -76,12 +76,13 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
     try {
       const data = await request<{ verification_events?: VerificationEvent[] }>(
         `/api/v1/incidents/${id}`,
+        { token },
       );
       setVerificationEvents(data.verification_events ?? []);
     } catch {
       // verification_events may not exist yet on older backend — silent degrade
     }
-  }, [id]);
+  }, [id, token]);
 
   const verifyIncident = useCallback(
     async (verdict: "VERIFIED" | "REJECTED", reason: string) => {
@@ -97,7 +98,7 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
         setConfirmVerdict(null);
         setVerdictReason("");
         // refresh detail to get updated verification status
-        void loadOne(id);
+        void loadOne(id, token);
       } catch (e) {
         setVerdictError(e instanceof Error ? e.message : "Verdict not recorded — try again.");
       } finally {
@@ -120,7 +121,7 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
         setConfirmOpen(false);
         setConfirmVerdict(null);
         setVerdictReason("");
-        void loadOne(id);
+        void loadOne(id, token);
       } catch (e) {
         setVerdictError(e instanceof Error ? e.message : "Reopen not recorded — try again.");
       } finally {
@@ -136,7 +137,7 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPollError(null);
     let cancelled = false;
-    request<PollData>(`/api/v1/incidents/${id}/poll`).then(
+    request<PollData>(`/api/v1/incidents/${id}/poll`, { token }).then(
       (data) => {
         if (!cancelled) setPoll(data);
       },
@@ -147,7 +148,7 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
       if (!cancelled) setPollLoading(false);
     });
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, token]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -155,13 +156,30 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
   }, [fetchVerificationEvents]);
 
   useEffect(() => {
-    void loadOne(id);
-  }, [id, loadOne]);
+    void loadOne(id, token);
+  }, [id, loadOne, token]);
 
   if (loading && !selected) {
     return (
       <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center text-xs text-[var(--muted)]">
         Loading incident {id}…
+      </div>
+    );
+  }
+
+  if (notFound && !selected) {
+    return (
+      <div>
+        <EmptyState
+          icon="404"
+          title="Incident not found"
+          body="This incident doesn't exist or may have been removed."
+          action={
+            <Link href="/incidents">
+              <Button variant="primary">Back to incidents</Button>
+            </Link>
+          }
+        />
       </div>
     );
   }

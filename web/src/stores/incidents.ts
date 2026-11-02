@@ -5,7 +5,7 @@
  * incident prepends itself onto the list (AD-10 / task 2).
  */
 import { create } from "zustand";
-import { request } from "@/api/client";
+import { request, HttpError } from "@/api/client";
 import { API_URL } from "@/lib/constants";
 import type {
   IncidentDetailOut,
@@ -19,6 +19,8 @@ interface IncidentsState {
   selected: IncidentDetailOut | null;
   loading: boolean;
   error: string | null;
+  /** true when the last loadOne got a 404 — page renders not-found state */
+  notFound: boolean;
   filters: {
     category: string;
     assessment: string;
@@ -42,15 +44,15 @@ interface IncidentsState {
     region?: string;
     limit?: number;
     offset?: number;
-  }) => Promise<void>;
-  loadOne: (id: string) => Promise<void>;
+  }, token?: string | null) => Promise<void>;
+  loadOne: (id: string, token?: string | null) => Promise<void>;
   loadVerificationQueue: (params?: {
     assessment?: string;
     min_age_minutes?: string;
     urgency?: string;
     limit?: number;
     offset?: number;
-  }) => Promise<void>;
+  }, token?: string | null) => Promise<void>;
   setFilter: (key: keyof IncidentsState["filters"], value: string) => void;
   /** open / close the live-map WS channel (token from useAuthSession) */
   connectWS: (token: string | null) => void;
@@ -76,13 +78,14 @@ export const useIncidents = create<IncidentsState>((set, get) => ({
   selected: null,
   loading: false,
   error: null,
+  notFound: false,
   filters: { ...EMPTY_FILTERS },
   ws: null,
   wsStatus: null,
   wsReconnectAttempts: 0,
   wsToken: null,
 
-  async load(params = {}) {
+  async load(params = {}, token) {
     const { category, assessment, verification, region, limit = 20, offset = 0 } = params;
     set({ loading: true, error: null });
     const search = new URLSearchParams();
@@ -95,6 +98,7 @@ export const useIncidents = create<IncidentsState>((set, get) => ({
     try {
       const res = await request<IncidentPageOut>(
         `/api/v1/incidents?${search.toString()}`,
+        { token },
       );
       set({ items: res.items, total: res.total, loading: false });
     } catch (e) {
@@ -105,16 +109,18 @@ export const useIncidents = create<IncidentsState>((set, get) => ({
     }
   },
 
-  async loadOne(id) {
-    set({ loading: true, error: null, selected: null });
+  async loadOne(id, token) {
+    set({ loading: true, error: null, selected: null, notFound: false });
     try {
-      const res = await request<IncidentDetailOut>(`/api/v1/incidents/${id}`);
+      const res = await request<IncidentDetailOut>(`/api/v1/incidents/${id}`, { token });
       set({ selected: res, loading: false });
     } catch (e) {
+      const is404 = e instanceof HttpError && e.status === 404;
       set({
         loading: false,
         error: e instanceof Error ? e.message : "Failed to load incident",
         selected: null,
+        notFound: is404,
       });
     }
   },
@@ -125,7 +131,7 @@ export const useIncidents = create<IncidentsState>((set, get) => ({
     urgency?: string;
     limit?: number;
     offset?: number;
-  }) {
+  }, token?: string | null) {
     const { assessment, min_age_minutes, urgency, limit = 20, offset = 0 } = params ?? {};
     set({ loading: true, error: null });
     const search = new URLSearchParams();
@@ -137,6 +143,7 @@ export const useIncidents = create<IncidentsState>((set, get) => ({
     try {
       const res = await request<IncidentPageOut>(
         `/api/v1/verification/queue?${search.toString()}`,
+        { token },
       );
       set({ items: res.items, total: res.total, loading: false });
     } catch (e) {

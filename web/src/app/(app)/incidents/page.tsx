@@ -51,8 +51,8 @@ export default function IncidentsPage() {
       verification: filters.verification,
       offset,
       limit: PAGE_SIZE,
-    });
-  }, [load, filters.category, filters.assessment, filters.verification, offset]);
+    }, token);
+  }, [load, filters.category, filters.assessment, filters.verification, offset, token]);
 
   // live-map WS: prepend fresh public incidents (AD-10)
   useEffect(() => {

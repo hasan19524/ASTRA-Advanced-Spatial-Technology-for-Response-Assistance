@@ -39,7 +39,7 @@ const URGENCY_FILTERS = [
 ];
 
 export default function VerificationQueuePage() {
-  const { can } = useAuthSession();
+  const { can, token } = useAuthSession();
   const router = useRouter();
   const {
     items,
@@ -62,13 +62,14 @@ export default function VerificationQueuePage() {
       urgency: filters.urgency,
       offset,
       limit: PAGE_SIZE,
-    });
+    }, token);
   }, [
     loadVerificationQueue,
     filters.assessment,
     filters.min_age_minutes,
     filters.urgency,
     offset,
+    token,
   ]);
 
   // Guard: only officer + admin can see this page
