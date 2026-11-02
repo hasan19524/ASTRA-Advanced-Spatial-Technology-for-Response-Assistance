@@ -50,3 +50,4 @@ Thumbs.db
 # contracts/openapi.json is COMMITTED (it is the law) — do not ignore it
 contracts/types.ts
 pytest_full.txt
+pt*.txt
