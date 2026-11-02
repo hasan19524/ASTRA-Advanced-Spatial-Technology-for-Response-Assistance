@@ -6,6 +6,7 @@
 import type { ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import { AlertBanner } from "@/components/alert/AlertBanner";
 import { ToastHost } from "@/components/ui/Toast";
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -14,6 +15,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar />
+        <AlertBanner />
         <main className="flex-1 overflow-y-auto px-6 py-5">{children}</main>
       </div>
       <ToastHost />

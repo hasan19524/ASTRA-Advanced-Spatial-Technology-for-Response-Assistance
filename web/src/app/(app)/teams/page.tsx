@@ -3,8 +3,8 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
-import { StatusBadge } from "@/components/ui/StatusBadge";
-import { mockTasks, mockTeams } from "@/lib/mocks/fixtures";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { UnavailableState } from "@/components/ui/UnavailableState";
 import { useAuthSession } from "@/hooks/useAuth";
 
 export default function TeamsPage() {
@@ -31,66 +31,19 @@ export default function TeamsPage() {
       />
 
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard icon="📌" value={mockTasks.length} label="Assigned Tasks" tone="info" />
+        <UnavailableState reason="Task list endpoint not built yet." />
         <StatCard icon="🔄" value="2" label="In Progress" tone="moderate" />
         <StatCard icon="✅" value="1" label="Completed Today" tone="verified" />
         <StatCard icon="👥" value="4 / 6" label="Team Availability" tone="verified" delta="Online" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card title="My Tasks" action={<span className="text-[11px] text-[var(--primary)]">View all</span>}>
-          <ul className="space-y-2.5">
-            {mockTasks.map((t) => (
-              <li
-                key={t.id}
-                className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate font-mono text-xs font-semibold text-[var(--primary)]">
-                    {t.id}
-                  </span>
-                  <StatusBadge tone={t.tone as never}>{t.status}</StatusBadge>
-                </div>
-                <p className="mt-1 truncate text-[11px] text-[var(--muted)]">{t.title}</p>
-                <p className="mt-0.5 text-[10px] text-[var(--subtle)]">{t.eta}</p>
-              </li>
-            ))}
-          </ul>
+        <Card title="My Tasks">
+          <EmptyState title="Tasks unavailable" body="The task list endpoint is not built yet." icon="◐" />
         </Card>
 
-        <Card title="Team Status" action={<span className="text-[11px] text-[var(--primary)]">View all</span>}>
-          <ul className="space-y-2.5">
-            {mockTeams.map((t) => (
-              <li
-                key={t.id}
-                className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-xs"
-              >
-                <span className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary-soft)] text-[10px] font-bold text-[#dbeafe]">
-                    {t.id.replace("T-", "")}
-                  </span>
-                  <span className="font-semibold">{t.id}</span>
-                  <span className="text-[var(--muted)]">{t.name}</span>
-                </span>
-                <span className="flex items-center gap-2">
-                  <span className="text-[10px] text-[var(--muted)]">{t.members}</span>
-                  <StatusBadge
-                    tone={
-                      t.status === "Available"
-                        ? "verified"
-                        : t.status === "En Route"
-                          ? "info"
-                          : t.status === "On Task"
-                            ? "moderate"
-                            : "critical"
-                    }
-                  >
-                    {t.status}
-                  </StatusBadge>
-                </span>
-              </li>
-            ))}
-          </ul>
+        <Card title="Team Status">
+          <EmptyState title="Team status unavailable" body="The team endpoint is not built yet." icon="◐" />
         </Card>
 
         <Card title="Current Route — INC-2026-0186">

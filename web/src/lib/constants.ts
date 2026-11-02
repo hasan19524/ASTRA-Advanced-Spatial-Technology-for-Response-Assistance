@@ -127,6 +127,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/reports", label: "Reports", icon: "file", permission: "analytics.operational" },
   { href: "/simulation", label: "Simulation", icon: "play", permission: "simulation.public" },
   { href: "/verification", label: "Verification", icon: "shield", permission: "incident.verify" },
+  { href: "/alerts", label: "Alerts", icon: "bell", permission: "alert.manage" },
   { href: "/settings", label: "Settings", icon: "settings" },
 ];
 

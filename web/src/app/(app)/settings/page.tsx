@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/Button";
 import { useAuthSession } from "@/hooks/useAuth";
 import { ROLE_LABELS, type Role } from "@/lib/constants";
+import Link from "next/link";
 
 const LANGUAGES = [
   "हिन्दी", "বাংলা", "తెలుగు", "मराठी", "தமிழ்", "ગુજરાતી", "ಕನ್ನಡ",
@@ -88,6 +89,14 @@ export default function SettingsPage() {
             features switch language.
           </p>
         </Card>
+
+        {can("audit.read") && (
+          <Card title="Audit viewer" subtitle="Admin-only audit log (GET /audit/logs)">
+            <Link href="/audit" className="text-[11px] text-[var(--primary)] hover:underline">
+              Open audit viewer →
+            </Link>
+          </Card>
+        )}
 
         <Card title="Danger zone">
           <div className="flex items-center justify-between">

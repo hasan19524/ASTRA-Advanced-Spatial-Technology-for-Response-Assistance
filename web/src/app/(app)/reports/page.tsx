@@ -3,10 +3,8 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { RoleGate } from "@/components/ui/RoleGate";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { mockIncidents, mockStats } from "@/lib/mocks/fixtures";
 
 const BY_CATEGORY = [
   ["Fire", 18],
@@ -67,28 +65,17 @@ export default function ReportsPage() {
           </Card>
 
           <Card title="Recent closures">
-            <ul className="space-y-2.5">
-              {mockIncidents
-                .filter((i) => i.lifecycle === "CLOSED" || i.response_phase === "RESOLVED")
-                .slice(0, 5)
-                .map((i) => (
-                  <li key={i.id} className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-[11px] text-[var(--primary)]">{i.id}</span>
-                      <StatusBadge value={i.lifecycle} />
-                    </div>
-                    <p className="mt-0.5 truncate text-[11px] text-[var(--muted)]">
-                      {i.category} — {i.location}
-                    </p>
-                  </li>
-                ))}
-            </ul>
+            <EmptyState
+              title="Recent closures unavailable"
+              body="The incidents list endpoint is not built yet, so closures can't be shown."
+              icon="◐"
+            />
           </Card>
         </div>
 
         <p className="mt-4 text-[10px] text-[var(--subtle)]">
-          Snapshot numbers come from the mock layer until GET /stats/overview ships
-          (currently {mockStats.active_incidents} active in the demo world).
+          Snapshot numbers come from the mock layer until GET /stats/overview ships.
+          The mock layer is only active when NEXT_PUBLIC_USE_MOCKS=1.
         </p>
       </RoleGate>
     </div>

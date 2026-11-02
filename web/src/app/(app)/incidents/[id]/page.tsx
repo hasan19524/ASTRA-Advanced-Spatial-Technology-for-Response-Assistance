@@ -12,11 +12,14 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Modal } from "@/components/ui/Modal";
+import { TaskList } from "@/components/task/TaskList";
 import { useIncidents } from "@/stores/incidents";
+import { useTasks } from "@/stores/tasks";
 import { useAuthSession } from "@/hooks/useAuth";
-import { API_URL } from "@/lib/constants";
+import { API_URL, DEPARTMENTS } from "@/lib/constants";
 import { request } from "@/api/client";
 import type { IncidentOut } from "@/api/types";
+import type { TaskCreateIn, TaskPatchIn, TaskUpdateIn } from "@/api/openapi-types";
 
 interface PollData {
   eligible: boolean;
@@ -32,6 +35,15 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
   const id = params.id;
   const { selected, loadOne, loading, error, notFound } = useIncidents();
   const { can, token } = useAuthSession();
+  const {
+    items: tasks,
+    loadByIncident,
+    create: createTask,
+    patch: patchTask,
+    addUpdate: addTaskUpdate,
+  } = useTasks();
+  const canAssign = can("task.assign");
+  const canUpdate = can("task.update");
 
   // --- public poll (Day 4) ---
   const [poll, setPoll] = useState<PollData | null>(null);
@@ -158,6 +170,75 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
   useEffect(() => {
     void loadOne(id, token);
   }, [id, loadOne, token]);
+
+  useEffect(() => {
+    void loadByIncident(id, token);
+  }, [id, loadByIncident, token]);
+
+  const handleCreate = useCallback(
+    (payload: TaskCreateIn) => {
+      void createTask(id, payload, token);
+    },
+    [createTask, id, token],
+  );
+
+  const handlePatch = useCallback(
+    (id: string, payload: TaskPatchIn) => {
+      void patchTask(id, payload, token);
+    },
+    [patchTask, token],
+  );
+
+  const handleUpdate = useCallback(
+    (id: string, payload: TaskUpdateIn) => {
+      void addTaskUpdate(id, payload, token);
+    },
+    [addTaskUpdate, token],
+  );
+
+  const canClose = can("incident.close");
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const [closeNote, setCloseNote] = useState("");
+  const [phaseErr, setPhaseErr] = useState<string | null>(null);
+  const [closeErr, setCloseErr] = useState<string | null>(null);
+
+  const PHASE_ORDER = ["NONE", "COORDINATING", "ACTIVE", "RESOLVED"] as const;
+  const currentPhase = (selected?.response_phase ?? "NONE") as (typeof PHASE_ORDER)[number];
+  const phaseIdx = PHASE_ORDER.indexOf(currentPhase);
+  const nextPhase = phaseIdx >= 0 && phaseIdx < PHASE_ORDER.length - 1 ? PHASE_ORDER[phaseIdx + 1] : null;
+
+  const handleSetPhase = useCallback(() => {
+    if (!nextPhase) return;
+    setPhaseErr(null);
+    void request<IncidentOut>(`/api/v1/incidents/${id}/phase`, {
+      method: "POST",
+      body: { phase: nextPhase },
+      token,
+    })
+      .then(() => {
+        void loadOne(id, token);
+      })
+      .catch((e) => {
+        setPhaseErr(e instanceof Error ? e.message : "Phase change refused by the server.");
+      });
+  }, [id, nextPhase, token, loadOne]);
+
+  const handleClose = useCallback(() => {
+    setCloseErr(null);
+    void request<IncidentOut>(`/api/v1/incidents/${id}/close`, {
+      method: "POST",
+      body: { note: closeNote.trim() || undefined },
+      token,
+    })
+      .then(() => {
+        setCloseConfirmOpen(false);
+        setCloseNote("");
+        void loadOne(id, token);
+      })
+      .catch((e) => {
+        setCloseErr(e instanceof Error ? e.message : "Close refused by the server.");
+      });
+  }, [id, closeNote, token, loadOne]);
 
   if (loading && !selected) {
     return (
@@ -401,6 +482,31 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
           )}
         </Card>
       </div>
+
+      {/* dispatch tasks — permission-gated (task.assign / task.update) */}
+      {canAssign || canUpdate ? (
+        <Card
+          title="Dispatch Tasks"
+          subtitle="Tasks route work to departments and track progress to done."
+        >
+          <TaskList
+            tasks={tasks}
+            canAssign={canAssign}
+            canUpdate={canUpdate}
+            departments={[...DEPARTMENTS]}
+            usersByDept={{}}
+            onCreate={handleCreate}
+            onPatch={handlePatch}
+            onUpdate={handleUpdate}
+          />
+        </Card>
+      ) : (
+        <EmptyState
+          title="Tasks not available"
+          body="Your role cannot create or update tasks on this incident."
+          icon="◇"
+        />
+      )}
 
       {/* public poll — full width below the 3-column grid */}
       <Card title="Public Poll">
@@ -654,8 +760,71 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
         </p>
       )}
     </Modal>
+
+    {canClose && (
+      <Modal
+        open={closeConfirmOpen}
+        onClose={() => setCloseConfirmOpen(false)}
+        title="Confirm Close Incident"
+        width="24rem"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setCloseConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" disabled={!!closeErr} onClick={handleClose}>
+              Confirm Close
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-[var(--muted)]">
+          Closing is irreversible for a Central Admin. The incident lifecycle becomes CLOSED.
+        </p>
+        <label className="block text-[10px] text-[var(--muted)] mb-1">
+          Closure note (optional)
+        </label>
+        <textarea
+          value={closeNote}
+          onChange={(e) => setCloseNote(e.target.value)}
+          rows={2}
+          className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs focus:border-[var(--primary)] focus:outline-none"
+          placeholder="Why is this incident being closed?…"
+        />
+      </Modal>
+    )}
+
+    {/* incident lifecycle — phase stepper + close (incident.close only) */}
+    {canClose && (
+      <Card title="Incident Lifecycle" subtitle="Phase transitions and closure.">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] text-[var(--muted)]">Response phase</span>
+            <StatusBadge value={currentPhase} />
+          </div>
+          {nextPhase ? (
+            <Button
+              variant="secondary"
+              disabled={phaseErr !== null}
+              onClick={handleSetPhase}
+            >
+              Advance to {nextPhase}
+            </Button>
+          ) : (
+            <span className="text-[10px] text-[var(--muted)]">Phase is terminal (RESOLVED).</span>
+          )}
+          {phaseErr && <p className="text-[10px] text-[var(--danger)]">{phaseErr}</p>}
+          <div className="pt-2 border-t border-[var(--border)]">
+            <Button variant="danger" onClick={() => setCloseConfirmOpen(true)}>
+              Close incident
+            </Button>
+            {closeErr && <p className="text-[10px] text-[var(--danger)] mt-1">{closeErr}</p>}
+          </div>
+        </div>
+      </Card>
+    )}
   </div>
-  );
+);
 }
 
 function AxisCard({

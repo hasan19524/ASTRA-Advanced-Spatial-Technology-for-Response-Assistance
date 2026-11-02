@@ -5,25 +5,26 @@
  * their own distinct card set. Data from the mock layer (API fallback).
  */
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { UnavailableState } from "@/components/ui/UnavailableState";
 import { MapPlaceholder } from "@/components/map/MapPlaceholder";
 import { Button } from "@/components/ui/Button";
 import { useAuthSession } from "@/hooks/useAuth";
 import { useIncidents } from "@/stores/incidents";
-import { mockActivity, mockStats, mockTasks, mockTeams } from "@/lib/mocks/fixtures";
+import { useStats } from "@/stores/stats";
+import { StatGrid } from "@/components/stats/StatGrid";
+import { CategoryBreakdown } from "@/components/stats/CategoryBreakdown";
 import { ROLE_LABELS, type Role } from "@/lib/constants";
 
 export default function DashboardPage() {
   const { user, can, token } = useAuthSession();
   const { items, load, loading, error } = useIncidents();
-  const [tick, setTick] = useState(0);
+  const { stats, load: loadStats } = useStats();
 
-  // client-only timestamps (new Date() at module scope breaks prerender)
   const dateStr = useMemo(
     () =>
       new Date().toLocaleDateString("en-IN", {
@@ -34,16 +35,15 @@ export default function DashboardPage() {
       }),
     [],
   );
-  // recompute every `tick` (30s interval below) so "updated …" stays fresh
-  const updated = tick
-    ? new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
-    : new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  const updated = new Date().toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   useEffect(() => {
     void load({}, token);
-    const t = setInterval(() => setTick((v) => v + 1), 30_000);
-    return () => clearInterval(t);
-  }, [load, token]);
+    void loadStats(token);
+  }, [load, loadStats, token]);
 
   const role = (user?.role ?? "CITIZEN") as Role;
   const recent = useMemo(() => items.slice(0, 5), [items]);
@@ -78,45 +78,25 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ---- KPI row (differs per role) ---- */}
-      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {role === "CITIZEN" ? (
-          <>
-            <StatCard icon="📋" value={items.length} label="Public incidents visible" tone="info" />
-            <StatCard icon="🗳" value="196" label="Poll responses today" tone="moderate" />
-            <StatCard icon="📢" value="2" label="Active alerts" tone="critical" />
-            <StatCard icon="🧭" value="Live" label="Map & navigation" tone="verified" />
-          </>
-        ) : role === "RESPONSE_TEAM" ? (
-          <>
-            <StatCard icon="📌" value={mockTasks.length} label="Assigned Tasks" tone="info" delta="2 in progress" />
-            <StatCard icon="🔄" value="2" label="In Progress" tone="moderate" />
-            <StatCard icon="✅" value="1" label="Completed Today" tone="verified" />
-            <StatCard icon="👥" value="4 / 6" label="Team Availability" tone="verified" delta="Online now" />
-          </>
-        ) : role === "VERIFICATION_OFFICER" ? (
-          <>
-            <StatCard icon="⏳" value={mockStats.under_verification} label="Awaiting verification" tone="moderate" delta="+2 today" />
-            <StatCard icon="✅" value="14" label="Verified today" tone="verified" />
-            <StatCard icon="❌" value="3" label="Rejected today" tone="critical" />
-            <StatCard icon="⏱" value="6m" label="Avg. time to verify" tone="info" />
-          </>
-        ) : role === "DEPARTMENT_HEAD" ? (
-          <>
-            <StatCard icon="🚨" value="9" label="Department incidents" tone="critical" delta="+2 today" />
-            <StatCard icon="👷" value="6" label="Active tasks" tone="moderate" />
-            <StatCard icon="🚒" value="4 / 6" label="Units deployed" tone="info" />
-            <StatCard icon="📈" value="82%" label="On-time progress" tone="verified" />
-          </>
-        ) : (
-          <>
-            <StatCard icon="🚨" value={mockStats.active_incidents} label="Active Incidents" tone="critical" delta={`↑ ${mockStats.deltas.active} today`} />
-            <StatCard icon="🔍" value={mockStats.under_verification} label="Under Verification" tone="moderate" delta={`↑ ${mockStats.deltas.verification} today`} />
-            <StatCard icon="🚑" value={mockStats.in_response} label="In Response" tone="info" delta={`↑ ${mockStats.deltas.response} today`} />
-            <StatCard icon="✅" value={mockStats.resolved_today} label="Resolved Today" tone="verified" delta={mockStats.deltas.resolved} />
-          </>
-        )}
-      </div>
+      {/* ---- KPI row (real stats; never fixtures) ---- */}
+      {stats.error ? (
+        <UnavailableState
+          reason={`Dashboard stats could not be loaded: ${stats.error}. The backend stats endpoint may not be built yet.`}
+        />
+      ) : stats.data ? (
+        <>
+          <StatGrid stats={stats.data} />
+          <div className="mt-4">
+            <Card title="Category breakdown">
+              <CategoryBreakdown breakdown={[]} />
+            </Card>
+          </div>
+        </>
+      ) : (
+        <div className="p-6 text-center text-xs text-[var(--muted)]">
+          Loading dashboard stats…
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* map — 2 cols */}
@@ -135,25 +115,13 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* activity feed */}
-        <Card
-          title="Recent Activity"
-          action={
-            <span className="text-[11px] text-[var(--primary)]">View all</span>
-          }
-        >
-          <ul className="space-y-3">
-            {mockActivity.map((a) => (
-              <li key={a.id} className="flex items-start gap-2.5">
-                <StatusBadge tone={a.tone as never} className="mt-0.5 shrink-0">
-                  {a.time}
-                </StatusBadge>
-                <div className="min-w-0">
-                  <p className="truncate text-xs text-[var(--foreground)]">{a.text}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
+        {/* activity feed — no live activity endpoint yet; honest empty state */}
+        <Card title="Recent Activity">
+          <EmptyState
+            title="Live activity feed unavailable"
+            body="The activity feed endpoint is not built yet. Incidents are shown in the table below."
+            icon="◐"
+          />
         </Card>
       </div>
 
@@ -161,55 +129,11 @@ export default function DashboardPage() {
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
         {role === "RESPONSE_TEAM" ? (
           <>
-            <Card title="My Tasks" action={<span className="text-[11px] text-[var(--primary)]">View all</span>}>
-              <ul className="space-y-2.5">
-                {mockTasks.map((t) => (
-                  <li key={t.id} className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="truncate text-xs font-semibold">{t.id}</span>
-                      <StatusBadge tone={t.tone as never}>{t.status}</StatusBadge>
-                    </div>
-                    <p className="mt-0.5 truncate text-[11px] text-[var(--muted)]">{t.title}</p>
-                    <p className="mt-0.5 text-[10px] text-[var(--subtle)]">{t.eta}</p>
-                  </li>
-                ))}
-              </ul>
+            <Card title="My Tasks">
+              <EmptyState title="Tasks unavailable" body="The task list endpoint is not built yet." icon="◐" />
             </Card>
             <Card title="Team Status">
-              <ul className="space-y-2.5">
-                {mockTeams.map((t) => (
-                  <li key={t.id} className="flex items-center justify-between text-xs">
-                    <span>
-                      <span className="font-semibold">{t.id}</span>{" "}
-                      <span className="text-[var(--muted)]">{t.name}</span>
-                    </span>
-                    <span className="flex items-center gap-2">
-                      <span className="text-[10px] text-[var(--muted)]">{t.members}</span>
-                      <StatusBadge
-                        tone={
-                          t.status === "Available"
-                            ? "verified"
-                            : t.status === "En Route"
-                              ? "info"
-                              : t.status === "On Task"
-                                ? "moderate"
-                                : "critical"
-                        }
-                      >
-                        {t.status}
-                      </StatusBadge>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-            <Card title="Availability">
-              <div className="flex flex-col items-center py-4">
-                <div className="relative flex h-24 w-24 items-center justify-center rounded-full border-4 border-[var(--primary)]">
-                  <span className="text-xl font-bold">4/6</span>
-                </div>
-                <p className="mt-3 text-xs text-[var(--muted)]">Units online</p>
-              </div>
+              <EmptyState title="Team status unavailable" body="The team endpoint is not built yet." icon="◐" />
             </Card>
           </>
         ) : (
@@ -316,7 +240,7 @@ export default function DashboardPage() {
       </div>
 
       <p className="mt-4 text-[10px] text-[var(--subtle)]">
-        Signed in as {user?.full_name} ({ROLE_LABELS[role]}) — tick index {tick % 2 === 0 ? "even" : "odd"}
+        Signed in as {user?.full_name} ({ROLE_LABELS[role]})
       </p>
     </div>
   );

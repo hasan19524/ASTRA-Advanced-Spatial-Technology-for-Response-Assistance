@@ -46,6 +46,15 @@ export default function ReportPage() {
   const [error, setError] = useState<string | null>(null);
   const photoInput = useRef<HTMLInputElement>(null);
 
+  const [recording, setRecording] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [voiceLang, setVoiceLang] = useState("hi-IN");
+  const [voiceErr, setVoiceErr] = useState<string | null>(null);
+  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const setFallback = useCallback(() => {
     setLat(NCR_LAT);
     setLng(NCR_LON);
@@ -103,6 +112,86 @@ export default function ReportPage() {
     }
     setPhoto(file);
     setPhotoPreview(URL.createObjectURL(file));
+  }, []);
+
+  const sendToSTT = useCallback(async (blob: Blob) => {
+    const form = new FormData();
+    form.append("audio", blob, "recording.webm");
+    form.append("language_code", voiceLang);
+    let lastError: unknown = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await request<{ transcript?: string }>("/api/v1/voice/stt", {
+          method: "POST",
+          body: form,
+          token,
+        });
+        const transcript = res?.transcript;
+        if (transcript) {
+          setVoiceTranscript(transcript);
+          setDescription((prev) => (prev ? `${prev} ${transcript}` : transcript));
+          setVoiceErr(null);
+          return;
+        }
+        lastError = new Error("No transcript returned.");
+      } catch (e) {
+        lastError = e;
+        const http = e as { status?: number };
+        if (http.status !== 504 || attempt === 1) break;
+      }
+    }
+    setVoiceErr(lastError instanceof Error ? lastError.message : "Speech-to-text failed.");
+  }, [voiceLang, token]);
+
+  const startRecording = useCallback(async () => {
+    setVoiceErr(null);
+    setVoiceTranscript(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/ogg";
+      const rec = new MediaRecorder(stream, { mimeType: mime });
+      chunksRef.current = [];
+      rec.ondataavailable = (e) => {
+        if (e.data.size) chunksRef.current.push(e.data);
+      };
+      rec.onerror = () => {
+        rec.stop();
+        setVoiceErr("Microphone error.");
+        setRecording(false);
+      };
+      rec.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        setRecording(false);
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        const blob = new Blob(chunksRef.current, { type: mime });
+        await sendToSTT(blob);
+      };
+      rec.start();
+      mediaRecorderRef.current = rec;
+      setRecording(true);
+      setElapsed(0);
+      timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
+      setTimeout(() => {
+        if (
+          mediaRecorderRef.current &&
+          mediaRecorderRef.current.state !== "inactive"
+        ) {
+          mediaRecorderRef.current.stop();
+        }
+      }, 60000);
+    } catch (e) {
+      setVoiceErr(e instanceof Error ? e.message : "Microphone access failed.");
+      setRecording(false);
+    }
+  }, [sendToSTT]);
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
   }, []);
 
   async function onSubmit(e: FormEvent) {
@@ -325,9 +414,56 @@ export default function ReportPage() {
 
         <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex items-center gap-2 text-[10px] text-[var(--muted)]">
-            <span className="w-3 h-3 rounded-full bg-[var(--muted)]" />
-            Voice reporting coming soon (Day 7)
+            <span
+              className={`w-3 h-3 rounded-full ${recording ? "bg-[var(--danger)] animate-pulse" : "bg-[var(--muted)]"}`}
+            />
+            Voice input (STT)
           </div>
+          <div className="flex items-center gap-2 ml-4 sm:ml-0">
+            <select
+              value={voiceLang}
+              onChange={(e) => setVoiceLang(e.target.value)}
+              className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-[10px] focus:border-[var(--primary)] focus:outline-none"
+            >
+              {[
+                "hi-IN",
+                "en-IN",
+                "bn-IN",
+                "te-IN",
+                "mr-IN",
+                "ta-IN",
+                "gu-IN",
+                "kn-IN",
+                "ml-IN",
+                "or-IN",
+                "pa-IN",
+                "as-IN",
+                "en-US",
+              ].map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </select>
+            <Button
+              type="button"
+              variant={recording ? "danger" : "secondary"}
+              disabled={submitting}
+              onClick={recording ? stopRecording : startRecording}
+            >
+              {recording ? "Stop recording" : "🎙 Record voice"}
+            </Button>
+            {recording && (
+              <span className="text-[10px] font-mono text-[var(--foreground)]">{elapsed}s</span>
+            )}
+          </div>
+          {voiceErr && <p className="text-[10px] text-[var(--danger)]">{voiceErr}</p>}
+          {voiceTranscript && (
+            <div className="rounded-lg border border-[var(--border)]/40 bg-[var(--primary-soft)]/30 p-2 text-[10px]">
+              <span className="text-[var(--primary)] font-bold text-[10px]">Transcript:</span>{" "}
+              {voiceTranscript}
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 pt-2">

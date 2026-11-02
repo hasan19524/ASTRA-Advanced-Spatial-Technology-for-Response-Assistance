@@ -8,7 +8,6 @@ import { StatCard } from "@/components/ui/StatCard";
 import { MapPlaceholder } from "@/components/map/MapPlaceholder";
 import { useAlerts } from "@/stores/alerts";
 import { useAuthSession } from "@/hooks/useAuth";
-import { mockIncidents } from "@/lib/mocks/fixtures";
 import type { IncidentOut } from "@/api/types";
 
 export default function SimulationPage() {
@@ -22,8 +21,9 @@ export default function SimulationPage() {
   const [showInfra, setShowInfra] = useState(true);
   const [running, setRunning] = useState(false);
 
-  // simulations write ONLY to sim_* tables (AD-3) — this is a UI preview
-  const simPins = mockIncidents.slice(0, 6);
+  // simulations write ONLY to sim_* tables (AD-3) — this is a UI preview.
+  // No live incident feed exists yet, so the map shows no pins.
+  const simPins: IncidentOut[] = [];
 
   function run() {
     setRunning(true);
