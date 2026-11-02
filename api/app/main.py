@@ -17,10 +17,29 @@ from app.routers import alerts, assistant, audit, auth, coordination, incidents,
 from app.services.incident_service import UPLOADS_DIR
 
 
+import asyncio as _asyncio
+
+async def _alert_sweeper():
+    while True:
+        try:
+            from datetime import datetime, timezone
+            from sqlalchemy import delete
+            from app.core.database import get_session_factory
+            from app.models import Alert
+            async with get_session_factory()() as db:
+                await db.execute(
+                    delete(Alert).where(Alert.expires_at.is_not(None), Alert.expires_at < datetime.now(timezone.utc))
+                )
+                await db.commit()
+        except Exception:
+            pass
+        await _asyncio.sleep(60)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Connections are created lazily; nothing to open at startup yet.
+    sweeper = _asyncio.create_task(_alert_sweeper())
     yield
+    sweeper.cancel()
     await dispose()
 
 
