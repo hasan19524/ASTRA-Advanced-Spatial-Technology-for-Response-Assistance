@@ -11,6 +11,14 @@ os.environ["DATABASE_URL"] = (
     "postgresql+asyncpg://postgres:postgres@localhost:5433/astra_test"
 )
 os.environ["JWT_SECRET"] = "test-secret"
+# Tests must be deterministic: never let a developer's local .env switch the
+# assessment path to a live LLM (assessment rows are pinned to rules_stub).
+os.environ["ASSESSMENT_BACKEND"] = "rules"
+for _k in (
+    "LLM_API_KEY", "GROQ_API_KEY", "OPENROUTER_API_KEY", "NVIDIA_API_KEY",
+    "GNANI_API_KEY",
+):
+    os.environ[_k] = ""
 
 import httpx  # noqa: E402
 import pytest  # noqa: E402

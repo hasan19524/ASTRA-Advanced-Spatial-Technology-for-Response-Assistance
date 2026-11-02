@@ -45,11 +45,11 @@ async def _fetch_task(db: AsyncSession, user: User, task_id: str) -> ResponseTas
     task = await db.get(ResponseTask, task_id)
     if task is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Not found"
         )
     if not _in_scope(user, task):
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Not found"
         )
     # RESPONSE_TEAM may only touch tasks they are assigned to
     if user.role == "RESPONSE_TEAM":
