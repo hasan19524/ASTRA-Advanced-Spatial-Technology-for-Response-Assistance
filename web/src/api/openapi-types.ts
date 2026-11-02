@@ -1,7 +1,7 @@
 /**
  * AUTO-GENERATED from http://localhost:8000/openapi.json — do not edit by hand.
  * Regenerate:  npm run contracts:sync
- * Generated: 2026-11-02T04:22:31.074Z
+ * Generated: 2026-11-02T09:24:54.349Z
  */
 /* eslint-disable */
 export interface AlertCreateIn {
