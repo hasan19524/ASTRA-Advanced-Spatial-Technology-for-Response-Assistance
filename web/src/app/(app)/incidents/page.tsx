@@ -100,7 +100,7 @@ export default function IncidentsPage() {
     <div>
       <PageHeader
         title="Incident Management"
-        subtitle={`${total} incident{total !== 1 ? "s" : ""} · live feed over WebSocket`}
+        subtitle={`${total} incident${total !== 1 ? "s" : ""} · live feed over WebSocket`}
         actions={
           can("report.create") ? (
             <Link href="/report">
