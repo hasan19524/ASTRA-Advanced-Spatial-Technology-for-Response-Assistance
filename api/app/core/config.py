@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     nvidia_model: str = "google/gemma-4-31b-it"
     nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
 
+    # --- Weather (OpenWeatherMap, free tier) ---
+    weather_api_key: str = ""
+    weather_base_url: str = "https://api.openweathermap.org/data/2.5"
+
     # --- Gnani voice (T3, Phase 2) ---
     gnani_api_key: str = ""
     gnani_base_url: str = "https://api.vachana.ai"

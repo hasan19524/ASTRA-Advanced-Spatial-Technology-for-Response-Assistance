@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse
 from app.core.audit import AuditMiddleware
 from app.core.config import settings
 from app.core.database import dispose
-from app.routers import alerts, assistant, audit, auth, coordination, incidents, map_ws, poll, routing, simulation, stats, tasks, verification, voice
+from app.routers import alerts, assistant, audit, auth, coordination, incidents, map_ws, poll, routing, simulation, stats, tasks, verification, voice, weather
 from app.services.incident_service import UPLOADS_DIR
 
 
@@ -31,6 +31,14 @@ async def _alert_sweeper():
                     delete(Alert).where(Alert.expires_at.is_not(None), Alert.expires_at < datetime.now(timezone.utc))
                 )
                 await db.commit()
+        except Exception:
+            pass
+        # Weather ingestion tick (every 5 min)
+        try:
+            from app.core.database import get_session_factory
+            from app.services import weather_service
+            async with get_session_factory()() as wdb:
+                await weather_service.weather_ingestion_tick(wdb)
         except Exception:
             pass
         await _asyncio.sleep(60)
@@ -84,6 +92,7 @@ app.include_router(alerts.ws_router)
 app.include_router(stats.router, prefix="/api/v1")
 app.include_router(audit.router, prefix="/api/v1")
 app.include_router(voice.router, prefix="/api/v1")
+app.include_router(weather.router, prefix="/api/v1")
 app.include_router(simulation.router, prefix="/api/v1")
 app.include_router(routing.router, prefix="/api/v1")
 app.include_router(assistant.router, prefix="/api/v1")
