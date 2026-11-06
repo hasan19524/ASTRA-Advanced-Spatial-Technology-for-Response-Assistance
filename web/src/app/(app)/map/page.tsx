@@ -26,16 +26,18 @@ export default function LiveMapPage() {
     disconnectWS,
   } = useIncidents();
 
-  const { token } = useAuthSession();
+  const { token, hydrated } = useAuthSession();
 
   useEffect(() => {
+    if (!hydrated) return;
     void load({}, token);
-  }, [load, token]);
+  }, [load, token, hydrated]);
 
   useEffect(() => {
+    if (!hydrated) return;
     connectWS(token);
     return () => disconnectWS();
-  }, [connectWS, disconnectWS, token]);
+  }, [connectWS, disconnectWS, token, hydrated]);
 
   const now = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 
