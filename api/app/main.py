@@ -38,6 +38,14 @@ async def _alert_sweeper():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     sweeper = _asyncio.create_task(_alert_sweeper())
+    # Pre-warm the routing graph cache (AD-4) so the first /route request is fast
+    try:
+        from app.core.database import get_session_factory
+        from app.services import routing_service
+        async with get_session_factory()() as db:
+            await routing_service.build_graph(db)
+    except Exception:
+        pass
     yield
     sweeper.cancel()
     await dispose()

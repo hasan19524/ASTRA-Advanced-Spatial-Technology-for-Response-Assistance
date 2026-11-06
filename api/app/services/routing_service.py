@@ -10,7 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import MapLocation, RoutingEdge
 
 
+_GRAPH_CACHE: dict = {"nodes": None, "adj": None}
+
 async def build_graph(db: AsyncSession):
+    if _GRAPH_CACHE["adj"] is not None:
+        return _GRAPH_CACHE["nodes"], _GRAPH_CACHE["adj"]
     nodes = (await db.scalars(select(MapLocation))).all()
     edges = (await db.scalars(select(RoutingEdge))).all()
     adj: dict[str, list[tuple[str, float]]] = {n.id: [] for n in nodes}
@@ -19,7 +23,8 @@ async def build_graph(db: AsyncSession):
             continue
         w = e.travel_time_s * (e.traffic_factor or 1.0)
         adj.setdefault(e.from_location_id, []).append((e.to_location_id, w))
-        # undirected? treat as directed per OSM; add reverse if needed
+    _GRAPH_CACHE["nodes"] = nodes
+    _GRAPH_CACHE["adj"] = adj
     return nodes, adj
 
 
