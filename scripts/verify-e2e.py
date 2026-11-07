@@ -44,8 +44,7 @@ check("incident create", r.status_code == 201, r.status_code)
 inc_id = r.json()["id"] if r.status_code == 201 else None
 r = httpx.get(f"{BASE}/api/v1/incidents", headers=h_c)
 check("incident list", r.status_code == 200)
-r = httpx.get(f"{BASE}/api/v1/incidents/{inc_id}", headers=h_c)
-print("DEBUG detail:", r.status_code, r.text[:120])
+r = httpx.get(f"{BASE}/api/v1/incidents/{inc_id}", headers=h_a)
 check("incident detail", r.status_code == 200)
 
 # 3. Tasks (admin)
