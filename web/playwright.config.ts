@@ -16,10 +16,12 @@ export default defineConfig({
   projects: [
     {
       name: "citizen",
+      testMatch: ["**/trust-arc.spec.*"],
       use: { ...devices["Desktop Chrome"] },
     },
     {
       name: "officer",
+      testMatch: ["**/officer.spec.*", "**/trust-arc.spec.*"],
       use: { ...devices["Desktop Chrome"] },
     },
   ],

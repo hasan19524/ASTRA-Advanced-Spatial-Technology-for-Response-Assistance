@@ -17,14 +17,12 @@ test.describe("officer trust arc", () => {
       .waitFor({ state: "visible", timeout: 15000 });
     await page.locator("button:has-text('Investigate')").first().click();
     await page.waitForURL(/\/incidents\//, { timeout: 15000 });
-
     // ---- Verdict: REJECT ----
     await page.locator("button:has-text('Mark Rejected')").waitFor({ state: "visible", timeout: 10000 });
+    await page.locator("button:has-text('Mark Rejected')").waitFor({ state: "visible", timeout: 10000 });
     await page.locator("button:has-text('Mark Rejected')").click();
-    await page.locator("button:has-text('Confirm REJECTED')").click();
-    await page
-      .locator('textarea[placeholder="Why this verdict?…"]')
-      .fill("Officer test rejection");
+    await page.locator('textarea[placeholder="Why this verdict?"]').waitFor({ state: "visible", timeout: 5000 });
+    await page.locator('textarea[placeholder="Why this verdict?"]').fill("Officer test rejection");
     await page.locator("button:has-text('Confirm REJECTED')").click();
     await page
       .locator("text=Rejected. Reopen to UNVERIFIED if new evidence appears.")

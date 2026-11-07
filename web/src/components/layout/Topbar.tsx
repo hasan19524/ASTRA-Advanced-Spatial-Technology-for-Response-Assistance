@@ -9,7 +9,7 @@ import { useAuthSession } from "@/hooks/useAuth";
 import { ROLE_LABELS, type Role } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 
-export function Topbar() {
+export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { user, logout } = useAuthSession();
   const unread = useAlerts((s) => s.unread);
   const markRead = useAlerts((s) => s.markRead);
@@ -27,6 +27,12 @@ export function Topbar() {
       className="sticky top-0 z-30 flex items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)]/95 px-4 backdrop-blur"
       style={{ height: "var(--topbar-h)" }}
     >
+      {/* mobile hamburger */}
+      {onMenuClick && (
+        <button onClick={onMenuClick} className="rounded-lg p-2 text-[var(--muted)] hover:bg-[var(--surface-2)] lg:hidden" aria-label="Open menu">
+          ☰
+        </button>
+      )}
       {/* region pill (AD-13: Delhi NCR) */}
       <button className="flex items-center gap-1 rounded-full border border-[var(--border-strong)] px-2.5 py-1 text-[11px] font-medium text-[var(--muted)] hover:text-[var(--foreground)]">
         <span className="text-[var(--primary)]">◉</span> Delhi NCR

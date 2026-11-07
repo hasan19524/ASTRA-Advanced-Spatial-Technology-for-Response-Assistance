@@ -702,16 +702,9 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
               </Button>
             </div>
             <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
-              <label className="block text-[10px] text-[var(--muted)] mb-1">
-                Reason (required for Reject)
-              </label>
-              <textarea
-                value={verdictReason}
-                onChange={(e) => setVerdictReason(e.target.value)}
-                rows={2}
-                className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs focus:border-[var(--primary)] focus:outline-none"
-                placeholder="Why this verdict?…"
-              />
+              <p className="text-[10px] text-[var(--muted)]">
+                Click "Mark Rejected" to open the confirmation dialog and enter a reason.
+              </p>
             </div>
           </div>
         )}
@@ -754,10 +747,19 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
         Marking as <strong>VERIFIED</strong> is terminal — it cannot be reversed.
         Only a REJECTED verdict can be reopened later.
       </p>
-      {confirmVerdict === "VERIFIED" && (
-        <p className="mt-2 text-sm text-[var(--muted)]">
-          Reason: {verdictReason || "(none)"}
-        </p>
+      {confirmVerdict === "REJECTED" && (
+        <div className="mt-3">
+          <label className="block text-[10px] text-[var(--muted)] mb-1">
+            Reason (required for Reject)
+          </label>
+          <textarea
+            value={verdictReason}
+            onChange={(e) => setVerdictReason(e.target.value)}
+            rows={2}
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs focus:border-[var(--primary)] focus:outline-none"
+            placeholder="Why this verdict?"
+          />
+        </div>
       )}
     </Modal>
 

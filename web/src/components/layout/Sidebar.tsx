@@ -28,7 +28,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className="flex h-screen shrink-0 flex-col border-r border-[var(--border)] bg-[var(--surface)]"
+      className="hidden lg:flex h-screen shrink-0 flex-col border-r border-[var(--border)] bg-[var(--surface)]"
       style={{ width: "var(--sidebar-w)" }}
     >
       {/* brand */}
