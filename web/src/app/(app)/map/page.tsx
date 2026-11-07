@@ -4,7 +4,7 @@
  * Subscribes to /ws/map so pins flow in as incidents are created (AD-10);
  * shows a proper empty state until the first public incident arrives.
  */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { useMap } from "@/stores/map";
 import { useIncidents } from "@/stores/incidents";
 import { useAuthSession } from "@/hooks/useAuth";
+import { request } from "@/api/client";
 
 export default function LiveMapPage() {
   const router = useRouter();
@@ -39,9 +40,40 @@ export default function LiveMapPage() {
     return () => disconnectWS();
   }, [connectWS, disconnectWS, token, hydrated]);
 
+  useEffect(() => {
+    if (!hydrated) return;
+    void (async () => {
+      try {
+        const locs = await request<{ id: string; name: string | null }[]>("/api/v1/route/locations?limit=200", { token });
+        setLocations(locs);
+      } catch { /* ignore */ }
+    })();
+  }, [token, hydrated]);
+
+  const runRoute = async () => {
+    if (!routeFrom || !routeTo || routeFrom === routeTo) return;
+    setRouteLoading(true);
+    try {
+      const res = await request<{ distance_seconds: number; path: string[] }>(
+        `/api/v1/route?from_id=${routeFrom}&to_id=${routeTo}`,
+        { token },
+      );
+      setRouteResult(res);
+    } catch {
+      setRouteResult(null);
+    } finally {
+      setRouteLoading(false);
+    }
+  };
+
   const now = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 
   const selected = items.find((i) => i.id === selectedIncidentId) ?? null;
+  const [routeFrom, setRouteFrom] = useState<string>("");
+  const [routeTo, setRouteTo] = useState<string>("");
+  const [routeResult, setRouteResult] = useState<{ distance_seconds: number; path: string[] } | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [locations, setLocations] = useState<{ id: string; name: string | null }[]>([]);
 
   return (
     <div>
@@ -137,6 +169,27 @@ export default function LiveMapPage() {
             </div>
           )}
 
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+            <p className="mb-2 text-xs font-semibold">Route finder</p>
+            <div className="space-y-2">
+              <select className="w-full rounded border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-[11px]" value={routeFrom} onChange={(e) => setRouteFrom(e.target.value)}>
+                <option value="">From…</option>
+                {locations.map((l) => <option key={l.id} value={l.id}>{l.name || l.id.slice(0, 8)}</option>)}
+              </select>
+              <select className="w-full rounded border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-[11px]" value={routeTo} onChange={(e) => setRouteTo(e.target.value)}>
+                <option value="">To…</option>
+                {locations.map((l) => <option key={l.id} value={l.id}>{l.name || l.id.slice(0, 8)}</option>)}
+              </select>
+              <button onClick={runRoute} disabled={routeLoading || !routeFrom || !routeTo} className="w-full rounded bg-[var(--primary)] px-2 py-1 text-[11px] text-white disabled:opacity-50">
+                {routeLoading ? "Computing…" : "Find Route"}
+              </button>
+              {routeResult && (
+                <p className="text-[10px] text-[var(--muted)]">
+                  Distance: {Math.round(routeResult.distance_seconds)}s · {routeResult.path.length} nodes
+                </p>
+              )}
+            </div>
+          </div>
           <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
             <p className="mb-2 text-xs font-semibold">Layer toggles</p>
             {(

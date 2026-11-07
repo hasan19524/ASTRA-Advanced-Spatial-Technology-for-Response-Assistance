@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse
 from app.core.audit import AuditMiddleware
 from app.core.config import settings
 from app.core.database import dispose
-from app.routers import alerts, assistant, audit, auth, coordination, incidents, map_ws, poll, routing, simulation, stats, tasks, verification, voice, weather
+from app.routers import alerts, assistant, audit, auth, coordination, geocode, incidents, map_ws, poll, routing, simulation, stats, tasks, verification, voice, weather
 from app.services.incident_service import UPLOADS_DIR
 
 
@@ -93,6 +93,7 @@ app.include_router(stats.router, prefix="/api/v1")
 app.include_router(audit.router, prefix="/api/v1")
 app.include_router(voice.router, prefix="/api/v1")
 app.include_router(weather.router, prefix="/api/v1")
+app.include_router(geocode.router, prefix="/api/v1")
 app.include_router(simulation.router, prefix="/api/v1")
 app.include_router(routing.router, prefix="/api/v1")
 app.include_router(assistant.router, prefix="/api/v1")
