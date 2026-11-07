@@ -1,27 +1,37 @@
-"""Redis vote rate limiter (Day 4, AD-12).
+"""Rate limiting dependency for auth endpoints."""
 
-Fail-open by design: a Redis blip never blocks voting — it only logs.
-"""
-
-import logging
+from fastapi import HTTPException, Request, status
 
 from app.core.database import get_redis
 
-logger = logging.getLogger(__name__)
 
-
-async def hit(key: str, limit: int, window_seconds: int) -> bool:
-    """Return True if the request is within the rate limit.
-
-    Redis INCR + EXPIRE per key. On any Redis error we fail open (True)
-    and log — availability beats perfect rate accounting here.
-    """
+async def rate_limit_auth(request: Request, limit: int = 10, window: int = 60):
+    """Allow `limit` requests per `window` seconds per IP."""
     try:
-        redis = get_redis()
-        current = await redis.incr(key)
-        if current == 1:
-            await redis.expire(key, window_seconds)
-        return current <= limit
-    except Exception:  # fail open on any Redis failure
-        logger.warning("rate limiter fail-open for %s", key)
-        return True
+        r = get_redis()
+        ip = request.client.host if request.client else "unknown"
+        key = f"rl:auth:{ip}"
+        count = await r.incr(key)
+        if count == 1:
+            await r.expire(key, window)
+        if count > limit:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many attempts. Try again later.",
+            )
+    except HTTPException:
+        raise
+    except Exception:
+        pass  # Redis down → don't block
+
+
+async def hit(key: str, limit: int, window: int) -> bool:
+    """Return True if under the limit, False if exceeded. Redis-backed."""
+    try:
+        r = get_redis()
+        count = await r.incr(key)
+        if count == 1:
+            await r.expire(key, window)
+        return count <= limit
+    except Exception:
+        return True  # Redis down -> don't block

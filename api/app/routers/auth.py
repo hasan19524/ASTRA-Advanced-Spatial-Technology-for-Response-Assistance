@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_db
+from app.core.rate_limit import rate_limit_auth
 from app.core.security import decode_refresh_token
 from app.models import User
 from app.schemas.auth import (
@@ -23,7 +24,9 @@ router = APIRouter(prefix="/auth", tags=["auth"])
     "/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED
 )
 async def register(
-    payload: RegisterRequest, db: AsyncSession = Depends(get_db)
+    payload: RegisterRequest,
+    db: AsyncSession = Depends(get_db),
+    _rl=Depends(rate_limit_auth),
 ) -> TokenResponse:
     """Self-registration always yields a CITIZEN account (staff roles are seeded, AD-7)."""
     user = await auth_service.register_user(db, payload)
@@ -32,7 +35,9 @@ async def register(
 
 @router.post("/login", response_model=TokenResponse)
 async def login(
-    payload: LoginRequest, db: AsyncSession = Depends(get_db)
+    payload: LoginRequest,
+    db: AsyncSession = Depends(get_db),
+    _rl=Depends(rate_limit_auth),
 ) -> TokenResponse:
     user = await auth_service.authenticate(db, payload)
     return auth_service.issue_tokens(user)
@@ -40,7 +45,9 @@ async def login(
 
 @router.post("/demo-login", response_model=TokenResponse)
 async def demo_login(
-    payload: DemoLoginRequest, db: AsyncSession = Depends(get_db)
+    payload: DemoLoginRequest,
+    db: AsyncSession = Depends(get_db),
+    _rl=Depends(rate_limit_auth),
 ) -> TokenResponse:
     """Server-side demo login (audit S1) �?" password never sent by the client."""
     user = await auth_service.demo_login(db, payload.email)
