@@ -66,12 +66,24 @@ export default function LiveMapPage() {
     }
   };
 
+  const runGeocode = async () => {
+    if (!geoQuery.trim()) return;
+    try {
+      const res = await request<{ display_name: string; lat: number; lon: number }[]>("/api/v1/geocode/search?q=" + encodeURIComponent(geoQuery), { token });
+      setGeoResults(res);
+    } catch {
+      setGeoResults([]);
+    }
+  };
+
   const now = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 
   const selected = items.find((i) => i.id === selectedIncidentId) ?? null;
   const [routeFrom, setRouteFrom] = useState<string>("");
   const [routeTo, setRouteTo] = useState<string>("");
   const [routeResult, setRouteResult] = useState<{ distance_seconds: number; path: string[] } | null>(null);
+  const [geoQuery, setGeoQuery] = useState("");
+  const [geoResults, setGeoResults] = useState<{ display_name: string; lat: number; lon: number }[]>([]);
   const [routeLoading, setRouteLoading] = useState(false);
   const [locations, setLocations] = useState<{ id: string; name: string | null }[]>([]);
 
@@ -169,6 +181,26 @@ export default function LiveMapPage() {
             </div>
           )}
 
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+            <p className="mb-2 text-xs font-semibold">Location search</p>
+            <div className="flex gap-2">
+              <input
+                className="flex-1 rounded border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-[11px]"
+                placeholder="Search location…"
+                value={geoQuery}
+                onChange={(e) => setGeoQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") void runGeocode(); }}
+              />
+              <button onClick={runGeocode} className="rounded bg-[var(--primary)] px-2 py-1 text-[11px] text-white">Search</button>
+            </div>
+            {geoResults.length > 0 && (
+              <ul className="mt-2 space-y-1 text-[10px]">
+                {geoResults.map((g, i) => (
+                  <li key={i} className="text-[var(--muted)] truncate" title={g.display_name}>{g.display_name}</li>
+                ))}
+              </ul>
+            )}
+          </div>
           <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
             <p className="mb-2 text-xs font-semibold">Route finder</p>
             <div className="space-y-2">

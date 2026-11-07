@@ -219,6 +219,25 @@ async def create_incident(
     )
     await db.commit()
     await db.refresh(incident)
+    # Auto-alert for life-safety categories (Phase 6)
+    if result.outcome == "MAYBE_TRUE" and category in ("Fire", "Medical emergency", "Structural collapse", "Flood/Waterlogging"):
+        try:
+            from app.services import alert_service
+            from app.schemas.alert import AlertCreateIn
+            await alert_service.create_alert(
+                db, user,
+                AlertCreateIn(
+                    event=f"Incident: {category}",
+                    title=f"New {category} report: {title}",
+                    body=description or title,
+                    severity="HIGH" if category in ("Fire", "Structural collapse") else "MODERATE",
+                    urgency="IMMEDIATE" if category in ("Fire", "Medical emergency") else "EXPECTED",
+                    certainty="LIKELY",
+                    area=region or "*",
+                ),
+            )
+        except Exception:
+            pass
     # live map channel (task 5): fan-out only while PUBLIC_UNVERIFIED+PUBLIC
     # (a DEFINITELY_FALSE report is HIDDEN by now → publish is a no-op)
     await publish_incident_created(incident)
