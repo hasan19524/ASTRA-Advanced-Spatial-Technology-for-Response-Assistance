@@ -46,7 +46,6 @@ r = httpx.get(f"{BASE}/api/v1/incidents", headers=h_c)
 check("incident list", r.status_code == 200)
 r = httpx.get(f"{BASE}/api/v1/incidents/{inc_id}", headers=h_c)
 print("DEBUG detail:", r.status_code, r.text[:120])
-print("DBG detail:", r.status_code, r.text[:150])
 check("incident detail", r.status_code == 200)
 
 # 3. Tasks (admin)
