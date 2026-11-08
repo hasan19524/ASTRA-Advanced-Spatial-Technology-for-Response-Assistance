@@ -2,7 +2,7 @@
 /**
  * Assistant — chat with the multi-provider LLM backend.
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";

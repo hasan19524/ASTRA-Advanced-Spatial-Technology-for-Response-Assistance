@@ -69,6 +69,36 @@ class Settings(BaseSettings):
     poll_rate_limit: int = 5  # votes per window, per user
     poll_rate_window_seconds: int = 60
 
+    # --- Auth rate limiting (brute-force protection) ---
+    # Per IP *and* per auth endpoint, so a registration burst never locks
+    # citizens out of logging in behind the same NAT address.
+    auth_rate_limit: int = 10
+    auth_rate_window_seconds: int = 60
+
+    # --- Routing graph (AD-4) ---
+    # The OSM graph (~406k nodes / ~475k edges) is loaded into memory at
+    # startup. On a free tier that costs ~7 s and ~190 MB, so it is loaded in
+    # the BACKGROUND: the API starts serving immediately and the first /route
+    # request waits for the build to finish instead of the container refusing
+    # connections. Set to false to skip the pre-warm entirely (the graph is
+    # then built lazily on the first route request).
+    routing_prewarm: bool = True
+
+    # --- Evidence media storage (AD-8) ---
+    # "local" writes to api/uploads/ — fine for development, but Render's free
+    # tier has an EPHEMERAL filesystem: every redeploy and every spin-down
+    # deletes the photos. "s3" puts them in an S3-compatible bucket (Cloudflare
+    # R2, AWS S3, MinIO…) so they survive. The API always serves them through
+    # the same signed-URL route, so the access rule never changes.
+    media_storage: str = "local"  # local | s3
+    media_url_ttl_seconds: int = 3600  # signed-URL lifetime
+    s3_endpoint_url: str = ""  # R2: https://<account>.r2.cloudflarestorage.com
+    s3_region: str = "auto"
+    s3_bucket: str = ""
+    s3_access_key_id: str = ""
+    s3_secret_access_key: str = ""
+    s3_key_prefix: str = "evidence"
+
     @model_validator(mode="after")
     def _reject_known_secrets(self) -> "Settings":
         if not self.jwt_secret or self.jwt_secret in FORBIDDEN_JWT_SECRETS:

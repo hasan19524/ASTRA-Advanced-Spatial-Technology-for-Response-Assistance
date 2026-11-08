@@ -14,8 +14,16 @@ os.environ["JWT_SECRET"] = "test-secret"
 # Tests must be deterministic: never let a developer's local .env switch the
 # assessment path to a live LLM (assessment rows are pinned to rules_stub).
 os.environ["ASSESSMENT_BACKEND"] = "rules"
+# The routing graph pre-warm runs in the background at startup. In tests the
+# schema is dropped and recreated between every test, so a background graph
+# build would race the DDL — tests build the graph explicitly when they need
+# it (tests/test_routing.py).
+os.environ["ROUTING_PREWARM"] = "false"
 for _k in (
-    "LLM_API_KEY", "GROQ_API_KEY", "OPENROUTER_API_KEY", "NVIDIA_API_KEY",
+    "LLM_API_KEY",
+    "GROQ_API_KEY",
+    "OPENROUTER_API_KEY",
+    "NVIDIA_API_KEY",
     "GNANI_API_KEY",
 ):
     os.environ[_k] = ""
@@ -98,6 +106,15 @@ async def _engine_per_test():
     database.get_engine.cache_clear()
     database.get_session_factory.cache_clear()
     database.get_redis.cache_clear()
+    # The auth rate limiter counts attempts in Redis. Those counters must not
+    # leak between tests, or a long suite trips its own 429s (the whole suite
+    # runs from 127.0.0.1). Production keeps the counters; tests start clean.
+    try:
+        r = database.get_redis()
+        async for key in r.scan_iter(match="rl:*"):
+            await r.delete(key)
+    except Exception:
+        pass
     yield
     if database.get_engine.cache_info().currsize:
         await database.get_engine().dispose()

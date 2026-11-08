@@ -52,3 +52,9 @@ contracts/types.ts
 pytest_full.txt
 pt*.txt
 _delhi_roads.json
+
+# --- Playwright output ---
+web/playwright-report/
+web/test-results/
+web/.playwright/
+

@@ -17,6 +17,10 @@ class ReportOut(BaseModel):
     content: str
     source: str  # TEXT | PHOTO | VOICE (voice lands Day 7)
     media_path: str | None = None  # "/uploads/<file>" or None
+    # AD-8: ready-to-use signed path ("/uploads/<file>?exp=…&sig=…"). The
+    # client must request this, never `media_path` — an unsigned request is
+    # rejected by the API with 403.
+    media_url: str | None = None
     created_at: datetime
     # deliberately NO reporter identity — privacy (Day 3 contract)
 

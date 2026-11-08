@@ -2,15 +2,26 @@
 
 from fastapi import HTTPException, Request, status
 
+from app.core.config import settings
 from app.core.database import get_redis
 
 
-async def rate_limit_auth(request: Request, limit: int = 10, window: int = 60):
-    """Allow `limit` requests per `window` seconds per IP."""
+async def rate_limit_auth(
+    request: Request, limit: int | None = None, window: int | None = None
+):
+    """Allow `limit` requests per `window` seconds per IP **and endpoint**.
+
+    The endpoint is part of the key on purpose: a burst of registrations must
+    not lock every citizen out of logging in from the same NAT address
+    (mobile carriers and campus networks share one public IP), while brute
+    force on a single endpoint is still capped.
+    """
+    limit = settings.auth_rate_limit if limit is None else limit
+    window = settings.auth_rate_window_seconds if window is None else window
     try:
         r = get_redis()
         ip = request.client.host if request.client else "unknown"
-        key = f"rl:auth:{ip}"
+        key = f"rl:auth:{request.url.path}:{ip}"
         count = await r.incr(key)
         if count == 1:
             await r.expire(key, window)

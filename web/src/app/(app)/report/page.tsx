@@ -387,6 +387,8 @@ export default function ReportPage() {
             </div>
             {photoPreview && (
               <div className="relative rounded-lg border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+                {/* local object: URL — next/image cannot optimise blob: sources */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={photoPreview}
                   alt="Photo preview"

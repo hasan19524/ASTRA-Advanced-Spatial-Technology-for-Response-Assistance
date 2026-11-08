@@ -30,6 +30,7 @@ from app.schemas.incident import (
 )
 from app.schemas.verification import VerificationEventOut
 from app.services import incident_service as svc
+from app.services import media_storage
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
 
@@ -115,7 +116,14 @@ async def get_incident(
         )
     reports, assessments = await svc.timeline(db, incident_id)
     detail = IncidentDetailOut.model_validate(incident)
-    detail.reports = [ReportOut.model_validate(r) for r in reports]
+    detail.reports = []
+    for r in reports:
+        report = ReportOut.model_validate(r)
+        # AD-8: the client gets a signed URL it can request as-is. It never
+        # sees the signing secret and never builds the path itself (an
+        # unsigned request is refused with 403).
+        report.media_url = media_storage.signed_media_url(r.media_path)
+        detail.reports.append(report)
     detail.assessments = [AssessmentOut.model_validate(a) for a in assessments]
     detail.report_count = len(reports)
     events = await svc.verification_events(

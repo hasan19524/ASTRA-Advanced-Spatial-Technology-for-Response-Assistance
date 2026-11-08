@@ -53,6 +53,9 @@ export interface ReportOut {
   content: string;
   source: string; // TEXT | PHOTO | VOICE
   media_path: string | null;
+  // AD-8: signed, ready-to-use path from the API ("/uploads/x?exp=…&sig=…").
+  // Request this, never `media_path` — an unsigned request is refused (403).
+  media_url: string | null;
   created_at: string;
 }
 

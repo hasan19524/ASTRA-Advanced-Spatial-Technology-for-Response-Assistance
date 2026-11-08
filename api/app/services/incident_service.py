@@ -12,7 +12,6 @@ Everyone else simply never matches those rows (absence, never 403).
 import re
 import uuid
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
 from sqlalchemy import and_, func, select, true
@@ -33,15 +32,13 @@ from app.models import (
     User,
     VerificationEvent,
 )
-from app.services import assessment_backend, incident_state
+from app.services import assessment_backend, incident_state, media_storage
 from app.services.assessment_backend import AssessmentBackend
 from app.services.map_ws import publish_incident_created
 
-# AD-8: api/uploads/ (gitignored) — resolved from this file so it works both
-# on the host venv and inside the container (/app/uploads).
-UPLOADS_DIR = Path(__file__).resolve().parents[2] / "uploads"
-
-_EXT_BY_TYPE = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+# AD-8: api/uploads/ (gitignored) — resolved from the storage module so it
+# works both on the host venv and inside the container (/app/uploads).
+UPLOADS_DIR = media_storage.UPLOADS_DIR
 
 
 def can_see_restricted(user: User) -> bool:
@@ -60,6 +57,11 @@ async def save_evidence(file: UploadFile | None) -> str | None:
 
     Client-declared content type + hard 5 MB cap; rejected uploads never
     touch the disk (422 with a readable detail — demo rule).
+
+    Where the bytes land depends on MEDIA_STORAGE: local disk in development,
+    an S3-compatible bucket (Cloudflare R2) in production — Render's free
+    tier has an ephemeral filesystem and would otherwise lose every photo on
+    the next deploy.
     """
     if file is None or not file.filename:
         return None
@@ -71,9 +73,8 @@ async def save_evidence(file: UploadFile | None) -> str | None:
     data = await file.read()
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=422, detail="Photo exceeds the 5 MB limit")
-    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
-    name = f"{uuid.uuid4().hex}{_EXT_BY_TYPE[file.content_type]}"
-    (UPLOADS_DIR / name).write_bytes(data)
+    name = f"{uuid.uuid4().hex}{media_storage.extension_for(file.content_type)}"
+    await media_storage.save_bytes(name, data)
     return f"/uploads/{name}"
 
 
@@ -220,18 +221,29 @@ async def create_incident(
     await db.commit()
     await db.refresh(incident)
     # Auto-alert for life-safety categories (Phase 6)
-    if result.outcome == "MAYBE_TRUE" and category in ("Fire", "Medical emergency", "Structural collapse", "Flood/Waterlogging"):
+    if result.outcome == "MAYBE_TRUE" and category in (
+        "Fire",
+        "Medical emergency",
+        "Structural collapse",
+        "Flood/Waterlogging",
+    ):
         try:
             from app.services import alert_service
             from app.schemas.alert import AlertCreateIn
+
             await alert_service.create_alert(
-                db, user,
+                db,
+                user,
                 AlertCreateIn(
                     event=f"Incident: {category}",
                     title=f"New {category} report: {title}",
                     body=description or title,
-                    severity="HIGH" if category in ("Fire", "Structural collapse") else "MODERATE",
-                    urgency="IMMEDIATE" if category in ("Fire", "Medical emergency") else "EXPECTED",
+                    severity="HIGH"
+                    if category in ("Fire", "Structural collapse")
+                    else "MODERATE",
+                    urgency="IMMEDIATE"
+                    if category in ("Fire", "Medical emergency")
+                    else "EXPECTED",
                     certainty="LIKELY",
                     area=region or "*",
                 ),

@@ -1,0 +1,276 @@
+# ASTRA CI — backend (FastAPI) + frontend (Next.js) + Playwright E2E.
+#
+# Port map (the two non-obvious ones):
+#   * Postgres is published on **5433**, not 5432. api/tests/conftest.py
+#     hardcodes `localhost:5433` for BOTH the app URL and the admin URL it uses
+#     to `CREATE DATABASE astra_test`. The container still listens on 5432
+#     inside the job network; only the *published* host port is 5433.
+#   * Redis is published on **6379** (the api/app/core/config.py default).
+#
+# The API image context is `api/` (api/Dockerfile), but CI runs the API
+# straight from source with uvicorn — no image build is needed to test it.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Superseded PR runs are cancelled; pushes to main always run to completion.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (ruff + pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Throwaway CI-only secret — never reuse this value anywhere else.
+      # api/app/core/config.py refuses to boot without JWT_SECRET.
+      JWT_SECRET: ci-only-not-a-real-secret-2f7c1d9b
+      # Deterministic assessment path: the rules stub, never a live LLM.
+      # api/tests/conftest.py forces this too; set it here for belt and braces.
+      ASSESSMENT_BACKEND: rules
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5433/astra_test
+      REDIS_URL: redis://localhost:6379/0
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          # The harness creates `astra_test` itself, so the service only needs
+          # the default `postgres` database to connect to as the admin DB.
+          POSTGRES_DB: postgres
+        ports:
+          # 5433 (not 5432) — the test harness hardcodes localhost:5433.
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            api/requirements.txt
+            api/requirements-dev.txt
+
+      - name: Install dependencies (runtime + dev tooling)
+        # api/requirements-dev.txt pulls in ruff and pytest.
+        run: python -m pip install -r api/requirements.txt -r api/requirements-dev.txt
+
+      - name: Lint (ruff)
+        working-directory: api
+        run: ruff check app tests
+
+      - name: Test (pytest)
+        working-directory: api
+        env:
+          # The `pytest` console script does NOT put the CWD on sys.path, so
+          # `from app...` in api/tests/conftest.py would fail to resolve.
+          # (api/pytest.ini sets testpaths=tests, asyncio_mode=auto.)
+          PYTHONPATH: .
+        run: pytest -q
+
+  frontend:
+    name: Frontend (eslint + next build + vitest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (eslint)
+        run: npm run lint
+
+      - name: Build (next build)
+        # NOTE: `npm run contracts:sync` is deliberately NOT run here. It
+        # regenerates web/src/api/openapi-types.ts from contracts/openapi.json
+        # and needs a live API, which would dirty the checked-out tree.
+        # The OpenAPI contract + generated types are committed as-is.
+        run: npm run build
+
+      - name: Unit tests (vitest)
+        run: npm run test
+
+  e2e:
+    name: E2E (Playwright)
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          # The E2E job uses the real app database (`astra`, same name as
+          # docker-compose.yml) instead of the throwaway `astra_test` the
+          # pytest harness builds — the service creates it on first boot.
+          POSTGRES_DB: astra
+        ports:
+          # 5433 — the app's default DATABASE_URL points at localhost:5433.
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d astra"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5433/astra
+      REDIS_URL: redis://localhost:6379/0
+      # Throwaway CI-only secret — never reuse this value anywhere else.
+      JWT_SECRET: ci-only-not-a-real-secret-2f7c1d9b
+      # Deterministic assessment path (the rules stub, no live LLM).
+      ASSESSMENT_BACKEND: rules
+      # DEMO_MODE=true unlocks POST /api/v1/auth/demo-login, which is what the
+      # "Citizen" / "Verification Officer" buttons on /login call. The
+      # password never leaves the server; the seeded accounts are the target.
+      DEMO_MODE: "true"
+      # The browser (and the /ws/map websocket) talk to the API directly.
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: api/requirements.txt
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install backend dependencies
+        run: python -m pip install -r api/requirements.txt
+
+      - name: Install frontend dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+
+      - name: Create the database schema (alembic)
+        # Same as the api/Dockerfile CMD: migrations run before uvicorn.
+        working-directory: api
+        run: alembic upgrade head
+
+      - name: Seed the demo world
+        # Creates the demo accounts the specs log in with
+        # (citizen@astra.dev, officer@astra.dev, admin@astra.dev ...),
+        # 12 incidents across all categories, tasks, votes and alerts.
+        # Must run from the repo root — seed/seed.py puts `api/` on sys.path.
+        run: python seed/seed.py
+
+      - name: Start the API
+        working-directory: api
+        run: |
+          nohup uvicorn app.main:app --host 127.0.0.1 --port 8000 \
+            > "$RUNNER_TEMP/astra-api.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/astra-api.pid"
+          disown || true
+
+      - name: Wait for the API
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8000/health; then
+              echo ""
+              echo "API is healthy."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::The API never became healthy on :8000"
+          cat "$RUNNER_TEMP/astra-api.log" || true
+          exit 1
+
+      - name: Run Playwright
+        working-directory: web
+        # web/playwright.config.ts starts the frontend itself:
+        #   webServer: { command: "npm run dev", url: "http://localhost:3000" }
+        # and `reuseExistingServer` is false under CI, so nothing may be
+        # listening on :3000 beforehand. The specs hardcode that base URL.
+        #
+        # --workers=1: the config's "citizen" and "officer" projects BOTH run
+        # tests/trust-arc.spec.ts and they share one database — in parallel the
+        # officer test can reject the very incident the citizen test is
+        # verifying. One worker keeps them serialised.
+        # --reporter=list,html: CI switches the reporter to "list", so ask for
+        # the HTML report explicitly to ship it as an artifact.
+        run: npx playwright test --workers=1 --reporter=list,html
+
+      - name: Upload Playwright report and traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          # playwright-report/ = HTML report, test-results/ = traces (recorded
+          # on the first retry) + failure screenshots.
+          path: |
+            web/playwright-report/
+            web/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Stop the API
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/astra-api.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/astra-api.pid")" || true
+          fi

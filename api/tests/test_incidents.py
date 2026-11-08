@@ -5,6 +5,9 @@ RESTRICTED/HIDDEN rows exist only for `incident.view_restricted` roles.
 Run:  cd api && .venv\\Scripts\\python.exe -m pytest -q
 """
 
+import hashlib
+import hmac
+import time
 import uuid
 
 import pytest
@@ -150,8 +153,6 @@ async def test_photo_upload_saved_and_served(client):
     media = detail.json()["reports"][0]["media_path"]
     assert media and media.startswith("/uploads/")
     assert detail.json()["reports"][0]["source"] == "PHOTO"
-
-    import hashlib, hmac, time
 
     fname = media.removeprefix("/uploads/")
     exp = int(time.time()) + 60

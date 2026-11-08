@@ -18,7 +18,7 @@ import { useTasks } from "@/stores/tasks";
 import { useAuthSession } from "@/hooks/useAuth";
 import { API_URL, DEPARTMENTS } from "@/lib/constants";
 import { request } from "@/api/client";
-import type { IncidentOut } from "@/api/types";
+import type { IncidentOut, ReportOut } from "@/api/types";
 import type { TaskCreateIn, TaskPatchIn, TaskUpdateIn } from "@/api/openapi-types";
 
 interface PollData {
@@ -28,6 +28,29 @@ interface PollData {
   genuine: number;
   fake: number;
   percent_genuine: number;
+}
+
+/** Evidence thumbnail — AD-8 signed URL, with an honest fallback when the
+ *  signed link has expired (the API refuses unsigned/expired requests). */
+function EvidenceThumb({ report }: { report: ReportOut }) {
+  const [failed, setFailed] = useState(false);
+  const url = report.media_url ? `${API_URL}${report.media_url}` : "";
+  if (!url || failed) {
+    return (
+      <div className="w-16 h-16 rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-2)] flex items-center justify-center text-[10px] text-[var(--muted)]">
+        {report.source}
+      </div>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={url}
+      alt="Evidence"
+      onError={() => setFailed(true)}
+      className="w-16 h-16 rounded object-cover"
+    />
+  );
 }
 
 export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) {
@@ -146,7 +169,6 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPollLoading(true);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPollError(null);
     let cancelled = false;
     request<PollData>(`/api/v1/incidents/${id}/poll`, { token }).then(
@@ -284,9 +306,6 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
 
   const inc = selected;
   if (!inc) return null;
-
-  const photoUrl = (p: { media_path: string | null }): string =>
-    p.media_path ? `${API_URL}${p.media_path}` : "";
 
   return (
     <div>
@@ -459,12 +478,8 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
                   key={r.id}
                   className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3"
                 >
-                  {r.media_path ? (
-                    <img
-                      src={photoUrl(r)}
-                      alt="Evidence"
-                      className="w-16 h-16 rounded object-cover"
-                    />
+                  {r.media_path || r.media_url ? (
+                    <EvidenceThumb report={r} />
                   ) : (
                     <div className="w-16 h-16 rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-2)] flex items-center justify-center text-[10px] text-[var(--muted)]">
                       {r.source}
@@ -703,7 +718,7 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
             </div>
             <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
               <p className="text-[10px] text-[var(--muted)]">
-                Click "Mark Rejected" to open the confirmation dialog and enter a reason.
+                Select Mark Rejected to open the confirmation dialog and enter a reason.
               </p>
             </div>
           </div>

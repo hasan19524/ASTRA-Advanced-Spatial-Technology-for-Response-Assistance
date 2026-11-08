@@ -4,6 +4,7 @@ envelope. Runs against the real stack (Postgres + Redis via docker compose)."""
 
 import asyncio
 import json
+import sys as _sys
 import uuid
 
 import pytest
@@ -351,8 +352,10 @@ def _create_user_async(email: str, role: str) -> None:
     asyncio.run(go())
 
 
-import sys as _sys
-@pytest.mark.skipif(_sys.platform == "win32", reason="Known Windows/proactor TestClient WebSocket teardown flake (passes on Linux/CI)")
+@pytest.mark.skipif(
+    _sys.platform == "win32",
+    reason="Known Windows/proactor TestClient WebSocket teardown flake (passes on Linux/CI)",
+)
 def test_ws_incident_updated_fanout(tc):
     """Verifying an incident publishes `incident.updated` on incidents:map."""
     email = f"wsvo+{uuid.uuid4().hex[:8]}@test.example"

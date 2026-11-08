@@ -1,0 +1,86 @@
+# ASTRA on Render (free tier) — infrastructure as code.
+#
+#   render blueprint launch   →  creates the API service + the Redis Key Value
+#
+# What this does NOT create, because Render's free tier does not provide it:
+#   * Postgres — Render Free Postgres expires after 30 days. Use Neon instead
+#     (1 GB, no expiry) and paste its URL into DATABASE_URL.
+#   * Object storage — Render's filesystem is ephemeral (a redeploy or a
+#     spin-down wipes it). Use Cloudflare R2 and paste its credentials into
+#     the MEDIA_STORAGE_* env vars.
+#
+# Every secret below is `sync: false`: Render prompts for it, nothing is
+# stored in this file.
+
+services:
+  # Redis (Render calls it "Key Value"). Free = 25 MB, in-memory only.
+  # ASTRA uses Redis for: the /ws/map + /ws/alerts pub/sub fan-out and the
+  # auth rate limiter. Neither needs durability, so an in-memory instance is
+  # enough — state is rebuilt on the next request.
+  - type: keyvalue
+    name: astra-redis
+    plan: free
+    region: singapore
+    ipAllowList: [] # internal only — the API reaches it over Render's private network
+    maxmemoryPolicy: allkeys-lru
+    persistenceMode: off # free instances are in-memory only
+
+  - type: web
+    name: astra-api
+    runtime: docker
+    dockerfilePath: ./api/Dockerfile.prod
+    dockerContext: ./api
+    plan: free # 0.1 CPU / 512 MB
+    region: singapore
+    healthCheckPath: /health
+    # Render free spins down after 15 min idle and takes ~1 min to wake.
+    # The routing graph is loaded in the background at startup (ROUTING_PREWARM)
+    # so the container never blocks on it and the health check stays green.
+    autoDeployTrigger: commit
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        sync: false # Neon pooled URL: postgresql+asyncpg://...@.../astra?sslmode=require
+      - key: REDIS_URL
+        fromService:
+          name: astra-redis
+          type: keyvalue
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true # Render generates a random secret
+      - key: CORS_ORIGINS
+        # JSON array — the parser expects JSON, not a comma-separated string.
+        # Put your Vercel URL here: https://astra.vercel.app
+        value: '["http://localhost:3000"]'
+      - key: DEMO_MODE
+        value: "false"
+      - key: ROUTING_PREWARM
+        value: "true"
+      - key: WEB_CONCURRENCY
+        value: "1" # 1 worker: each worker holds its own ~167 MB routing graph
+      - key: MEDIA_STORAGE
+        value: s3
+      - key: S3_ENDPOINT_URL
+        sync: false # Cloudflare R2: https://<account>.r2.cloudflarestorage.com
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_REGION
+        value: auto
+      - key: S3_KEY_PREFIX
+        value: evidence
+      # Optional free-tier providers — leave empty to degrade honestly.
+      - key: GROQ_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: GNANI_API_KEY
+        sync: false
+      - key: WEATHER_API_KEY
+        sync: false

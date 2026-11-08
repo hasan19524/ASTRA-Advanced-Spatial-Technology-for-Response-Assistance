@@ -29,6 +29,14 @@ export default function LiveMapPage() {
 
   const { token, hydrated } = useAuthSession();
 
+  const [routeFrom, setRouteFrom] = useState<string>("");
+  const [routeTo, setRouteTo] = useState<string>("");
+  const [routeResult, setRouteResult] = useState<{ distance_seconds: number; path: string[] } | null>(null);
+  const [geoQuery, setGeoQuery] = useState("");
+  const [geoResults, setGeoResults] = useState<{ display_name: string; lat: number; lon: number }[]>([]);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [locations, setLocations] = useState<{ id: string; name: string | null }[]>([]);
+
   useEffect(() => {
     if (!hydrated) return;
     void load({}, token);
@@ -79,13 +87,6 @@ export default function LiveMapPage() {
   const now = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 
   const selected = items.find((i) => i.id === selectedIncidentId) ?? null;
-  const [routeFrom, setRouteFrom] = useState<string>("");
-  const [routeTo, setRouteTo] = useState<string>("");
-  const [routeResult, setRouteResult] = useState<{ distance_seconds: number; path: string[] } | null>(null);
-  const [geoQuery, setGeoQuery] = useState("");
-  const [geoResults, setGeoResults] = useState<{ display_name: string; lat: number; lon: number }[]>([]);
-  const [routeLoading, setRouteLoading] = useState(false);
-  const [locations, setLocations] = useState<{ id: string; name: string | null }[]>([]);
 
   return (
     <div>
