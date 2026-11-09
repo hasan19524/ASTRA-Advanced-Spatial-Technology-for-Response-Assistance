@@ -6,7 +6,7 @@
  * optional location_text, optional photo (preview + client type/size check).
  * Voice slot visible but disabled ("coming soon", AD-16 → ships Day 7).
  */
-import { useCallback, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
@@ -15,6 +15,7 @@ import { useAlerts } from "@/stores/alerts";
 import { CATEGORIES } from "@/lib/constants";
 import { request } from "@/api/client";
 import { useAuthSession } from "@/hooks/useAuth";
+import { useVoiceLanguage } from "@/stores/voiceLanguage";
 
 const MAX_BYTES = 5 * 1024 * 1024; // mirror backend MAX_UPLOAD_BYTES (AD-8)
 const ALLOWED = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp" };
@@ -27,6 +28,15 @@ export default function ReportPage() {
   const router = useRouter();
   const toast = useAlerts((s) => s.toast);
   const { token } = useAuthSession();
+  // The microphone language comes from Settings (AD-16) — one selection,
+  // persisted, shared by the settings screen and this form.
+  const voiceLanguage = useVoiceLanguage();
+
+  // Fetch the language list once (the store caches it for Settings too).
+  useEffect(() => {
+    void voiceLanguage.load(token);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -48,7 +58,6 @@ export default function ReportPage() {
 
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
-  const [voiceLang, setVoiceLang] = useState("hi-IN");
   const [voiceErr, setVoiceErr] = useState<string | null>(null);
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -117,7 +126,7 @@ export default function ReportPage() {
   const sendToSTT = useCallback(async (blob: Blob) => {
     const form = new FormData();
     form.append("audio", blob, "recording.webm");
-    form.append("language_code", voiceLang);
+    form.append("language_code", voiceLanguage.selected);
     let lastError: unknown = null;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
@@ -141,7 +150,7 @@ export default function ReportPage() {
       }
     }
     setVoiceErr(lastError instanceof Error ? lastError.message : "Speech-to-text failed.");
-  }, [voiceLang, token]);
+  }, [voiceLanguage.selected, token]);
 
   const startRecording = useCallback(async () => {
     setVoiceErr(null);
@@ -423,27 +432,14 @@ export default function ReportPage() {
           </div>
           <div className="flex items-center gap-2 ml-4 sm:ml-0">
             <select
-              value={voiceLang}
-              onChange={(e) => setVoiceLang(e.target.value)}
+              value={voiceLanguage.selected}
+              onChange={(e) => voiceLanguage.select(e.target.value)}
+              aria-label="Voice input language"
               className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-[10px] focus:border-[var(--primary)] focus:outline-none"
             >
-              {[
-                "hi-IN",
-                "en-IN",
-                "bn-IN",
-                "te-IN",
-                "mr-IN",
-                "ta-IN",
-                "gu-IN",
-                "kn-IN",
-                "ml-IN",
-                "or-IN",
-                "pa-IN",
-                "as-IN",
-                "en-US",
-              ].map((l) => (
-                <option key={l} value={l}>
-                  {l}
+              {voiceLanguage.languages.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.name}
                 </option>
               ))}
             </select>

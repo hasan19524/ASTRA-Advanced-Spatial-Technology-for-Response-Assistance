@@ -11,6 +11,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.constants import DEPARTMENTS, DEPARTMENT_SET
 from app.models import Assignment, ResponseTask, TaskUpdate, User
 from app.services import incident_service
 
@@ -44,13 +45,9 @@ def _in_scope(user: User, task: ResponseTask) -> bool:
 async def _fetch_task(db: AsyncSession, user: User, task_id: str) -> ResponseTask:
     task = await db.get(ResponseTask, task_id)
     if task is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     if not _in_scope(user, task):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     # RESPONSE_TEAM may only touch tasks they are assigned to
     if user.role == "RESPONSE_TEAM":
         assigned = await db.scalar(
@@ -102,6 +99,16 @@ async def create_task(db, user, incident_id, payload) -> ResponseTask:
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="department is required",
         )
+    if department not in DEPARTMENT_SET:
+        # A free-form department string silently creates a second department
+        # (the directory then shows a team with no people and no tasks).
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"Unknown department '{department}'. "
+                f"Valid departments: {', '.join(DEPARTMENTS)}"
+            ),
+        )
     task = ResponseTask(
         incident_id=incident_id,
         title=payload.title,
@@ -151,6 +158,56 @@ async def list_tasks(db, user, incident_id) -> list[ResponseTask]:
     return list(rows)
 
 
+async def list_tasks_scoped(
+    db,
+    user,
+    *,
+    task_status: str | None = None,
+    department: str | None = None,
+    incident_id: str | None = None,
+    assigned_to_me: bool = False,
+    limit: int = 100,
+) -> list[ResponseTask]:
+    """Role-scoped task list (GET /api/v1/tasks).
+
+    Scope follows the same rules as the single-task read (`_fetch_task`):
+      * CENTRAL_ADMIN   → every task
+      * DEPARTMENT_HEAD → tasks of their own department
+      * RESPONSE_TEAM   → only tasks they are assigned to
+
+    A RESPONSE_TEAM member can never widen their scope with the filters —
+    `assigned_to_me` only narrows.
+    """
+    stmt = select(ResponseTask)
+
+    if user.role == "DEPARTMENT_HEAD":
+        stmt = stmt.where(ResponseTask.department == user.department)
+    elif user.role == "RESPONSE_TEAM":
+        assigned = select(Assignment.task_id).where(Assignment.assignee_id == user.id)
+        stmt = stmt.where(ResponseTask.id.in_(assigned))
+        if assigned_to_me:
+            stmt = stmt.where(ResponseTask.id.in_(assigned))
+    elif user.role != "CENTRAL_ADMIN":
+        # any other role holding task.view sees nothing rather than everything
+        return []
+
+    if task_status:
+        stmt = stmt.where(ResponseTask.status == task_status)
+    if department:
+        if user.role != "CENTRAL_ADMIN":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only a central admin can filter tasks by another department",
+            )
+        stmt = stmt.where(ResponseTask.department == department)
+    if incident_id:
+        stmt = stmt.where(ResponseTask.incident_id == incident_id)
+
+    stmt = stmt.order_by(ResponseTask.created_at.desc()).limit(limit)
+    rows = (await db.scalars(stmt)).all()
+    return list(rows)
+
+
 async def get_task(db, user, task_id) -> ResponseTask:
     return await _fetch_task(db, user, task_id)
 
@@ -162,6 +219,14 @@ async def patch_task(db, user, task_id, payload) -> ResponseTask:
     if payload.description is not None:
         task.description = payload.description
     if payload.department is not None:
+        if payload.department not in DEPARTMENT_SET:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"Unknown department '{payload.department}'. "
+                    f"Valid departments: {', '.join(DEPARTMENTS)}"
+                ),
+            )
         task.department = payload.department
     if payload.status is not None and payload.status != task.status:
         _refuse_illegal_transition(task.status, payload.status)

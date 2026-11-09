@@ -91,7 +91,10 @@ export default function VerificationQueuePage() {
     {
       key: "id",
       header: "ID",
-      render: (r) => <span className="font-mono text-[var(--primary)]">{r.id}</span>,
+      className: "whitespace-nowrap",
+      render: (r) => (
+        <span className="font-mono text-[var(--primary)]">{r.id.slice(0, 8)}…</span>
+      ),
     },
     { key: "category", header: "Category", render: (r) => r.category },
     {
@@ -120,10 +123,15 @@ export default function VerificationQueuePage() {
       key: "action",
       header: "Action",
       render: (r) => (
-        <Link href={`/incidents/${r.id}`}>
-          <Button variant="secondary">
-            Investigate
-          </Button>
+        // The anchor IS the button. Nesting a <button> inside a <Link>
+        // produced invalid HTML (interactive content inside an anchor)
+        // and an invisible 16 px-tall tap target, because the anchor
+        // only wrapped the inline text.
+        <Link
+          href={`/incidents/${r.id}`}
+          className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--border-strong)] bg-[var(--surface-2)] px-3 py-1.5 text-xs font-semibold text-[var(--foreground)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]"
+        >
+          Investigate
         </Link>
       ),
     },
@@ -138,7 +146,7 @@ export default function VerificationQueuePage() {
     <div>
       <PageHeader
         title="Verification Queue"
-        subtitle={`${total} incident{total !== 1 ? "s" : ""} awaiting officer review`}
+        subtitle={`${total} incident${total !== 1 ? "s" : ""} awaiting officer review`}
       />
 
       {/* filter row */}
@@ -256,7 +264,7 @@ function Select({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[11px] text-[var(--muted)] focus:border-[var(--primary)] focus:outline-none"
+      className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[11px] text-[var(--muted)] focus:border-[var(--primary)] focus:outline-none min-h-10 [@media(pointer:coarse)]:py-2"
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>

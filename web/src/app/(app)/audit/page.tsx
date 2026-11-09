@@ -4,25 +4,50 @@
  * GET /api/v1/audit/logs with server-side paging (limit/offset) and actor +
  * action filters. Columns: actor, action, method, path, status, timestamp.
  */
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/Button";
+import { LinkButton } from "@/components/ui/LinkButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useAuthSession } from "@/hooks/useAuth";
 import { request } from "@/api/client";
 
 const LIMIT = 50;
 
+/** Exactly what GET /api/v1/audit/logs returns (see api/app/routers/audit.py). */
 interface AuditLog {
-  actor: string | null;
+  id: string;
+  actor_id: string | null;
+  actor_role: string | null;
+  actor_label: string | null;
   action: string | null;
   method: string | null;
   path: string | null;
-  status: number | null;
-  timestamp: string | null;
+  resource_id: string | null;
+  status_code: number | null;
+  ip: string | null;
+  created_at: string | null;
+}
+
+/** Prefer the captured email/label, fall back to the opaque actor id. */
+function actorName(l: AuditLog): string {
+  return l.actor_label ?? l.actor_id ?? "—";
+}
+
+/** ISO timestamp → a readable local string (and a stable key part). */
+function stamp(l: AuditLog): string {
+  if (!l.created_at) return "—";
+  const d = new Date(l.created_at);
+  if (Number.isNaN(d.getTime())) return l.created_at;
+  return d.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 }
 
 export default function AuditPage() {
@@ -68,9 +93,9 @@ export default function AuditPage() {
         <p className="mt-1 text-xs text-[var(--muted)]">
           You need the audit.read permission to view the audit log.
         </p>
-        <Link href="/dashboard" className="mt-4 inline-block">
-          <Button variant="primary">Back to dashboard</Button>
-        </Link>
+        <LinkButton href="/dashboard" variant="primary" className="mt-4">
+          Back to dashboard
+        </LinkButton>
       </div>
     );
   }
@@ -97,7 +122,8 @@ export default function AuditPage() {
             ) : displayLogs.length === 0 ? (
               <EmptyState title="No audit entries" body="No log entries match the current filters." icon="◐" />
             ) : (
-              <table className="w-full text-left text-[10px]">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] text-left text-[10px]">
                 <thead>
                   <tr className="border-b border-[var(--border)] text-[var(--muted)]">
                     <th className="px-3 py-2 font-medium">Timestamp</th>
@@ -110,21 +136,24 @@ export default function AuditPage() {
                 </thead>
                 <tbody className="divide-y divide-[var(--border)]">
                   {displayLogs.map((l) => (
-                    <tr key={`${l.timestamp}-${l.action}-${l.path}`} className="hover:bg-[var(--surface-2)]">
-                      <td className="px-3 py-2 text-[var(--muted)] font-mono">{l.timestamp ?? "—"}</td>
-                      <td className="px-3 py-2 text-[var(--foreground)] font-mono">{l.actor ?? "—"}</td>
+                    <tr key={l.id} className="hover:bg-[var(--surface-2)]">
+                      <td className="px-3 py-2 text-[var(--muted)] font-mono whitespace-nowrap">{stamp(l)}</td>
+                      <td className="px-3 py-2 text-[var(--foreground)] font-mono truncate max-w-[14rem]" title={actorName(l)}>
+                        {actorName(l)}
+                      </td>
                       <td className="px-3 py-2 text-[var(--foreground)]">{l.action ?? "—"}</td>
                       <td className="px-3 py-2 text-[var(--muted)] font-mono">{l.method ?? "—"}</td>
                       <td className="px-3 py-2 text-[var(--foreground)] font-mono truncate max-w-[26rem]" title={String(l.path ?? "—")}>
                         {l.path ?? "—"}
                       </td>
                       <td className="px-3 py-2">
-                        <StatusBadge value={String(l.status ?? "—")} />
+                        <StatusBadge value={String(l.status_code ?? "—")} />
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
             <div className="mt-3 flex items-center justify-between gap-2">
               <Button

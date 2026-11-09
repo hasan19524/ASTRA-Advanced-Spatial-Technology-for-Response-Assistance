@@ -197,6 +197,26 @@ async def test_non_mutating_requests_are_not_audited(client):
     assert await _audit_count() == before
 
 
+async def test_token_refresh_is_not_audited(client):
+    """A silent token refresh is machine traffic, not a user action — auditing
+    it buried the real entries (and grew the table on every page view)."""
+    r = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": f"refresh+{uuid.uuid4().hex[:8]}@test.example",
+            "full_name": "Refresh Tester",
+            "password": "Str0ngPass!23",
+        },
+    )
+    assert r.status_code == 201, r.text
+    refresh = r.json()["refresh_token"]
+
+    before = await _audit_count()
+    resp = await client.post("/api/v1/auth/refresh", json={"refresh_token": refresh})
+    assert resp.status_code == 200, resp.text
+    assert await _audit_count() == before
+
+
 async def _audit_count() -> int:
     from sqlalchemy import func, select
 

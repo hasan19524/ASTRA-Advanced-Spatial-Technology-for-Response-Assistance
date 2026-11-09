@@ -1,15 +1,16 @@
 "use client";
+import Link from "next/link";
 /**
  * Incident Detail — real API (GET /api/v1/incidents/{id}).
  * 4-axis status cards from IncidentOut + assessment timeline (assessments[])
  * + evidence list (reports[] with photo URLs) + public poll card.
  * 404 → not-found state (hidden rows surface as 404 to unauthorized roles, AD-19).
  */
-import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { LinkButton } from "@/components/ui/LinkButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Modal } from "@/components/ui/Modal";
 import { TaskList } from "@/components/task/TaskList";
@@ -19,7 +20,12 @@ import { useAuthSession } from "@/hooks/useAuth";
 import { API_URL, DEPARTMENTS } from "@/lib/constants";
 import { request } from "@/api/client";
 import type { IncidentOut, ReportOut } from "@/api/types";
-import type { TaskCreateIn, TaskPatchIn, TaskUpdateIn } from "@/api/openapi-types";
+import type {
+  TaskCreateIn,
+  TaskPatchIn,
+  TaskUpdateIn,
+  UserOut,
+} from "@/api/openapi-types";
 
 interface PollData {
   eligible: boolean;
@@ -67,6 +73,32 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
   } = useTasks();
   const canAssign = can("task.assign");
   const canUpdate = can("task.update");
+
+  // --- people directory (real assignees, GET /api/v1/users) ---
+  const [usersByDept, setUsersByDept] = useState<Record<string, UserOut[]>>({});
+
+  useEffect(() => {
+    if (!canAssign) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const people = await request<UserOut[]>("/api/v1/users", { token });
+        if (cancelled || !Array.isArray(people)) return;
+        const grouped: Record<string, UserOut[]> = {};
+        for (const p of people) {
+          const dept = p.department ?? "Unassigned";
+          (grouped[dept] ??= []).push(p);
+        }
+        setUsersByDept(grouped);
+      } catch {
+        // the picker stays disabled with its own honest note
+        setUsersByDept({});
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [canAssign, token]);
 
   // --- public poll (Day 4) ---
   const [poll, setPoll] = useState<PollData | null>(null);
@@ -278,9 +310,9 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
           title="Incident not found"
           body="This incident doesn't exist or may have been removed."
           action={
-            <Link href="/incidents">
-              <Button variant="primary">Back to incidents</Button>
-            </Link>
+            <LinkButton href="/incidents" variant="primary">
+              Back to incidents
+            </LinkButton>
           }
         />
       </div>
@@ -295,9 +327,9 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
           title="Incident could not be loaded"
           body={error}
           action={
-            <Link href="/incidents">
-              <Button variant="primary">Back to incidents</Button>
-            </Link>
+            <LinkButton href="/incidents" variant="primary">
+              Back to incidents
+            </LinkButton>
           }
         />
       </div>
@@ -509,7 +541,7 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
             canAssign={canAssign}
             canUpdate={canUpdate}
             departments={[...DEPARTMENTS]}
-            usersByDept={{}}
+            usersByDept={usersByDept}
             onCreate={handleCreate}
             onPatch={handlePatch}
             onUpdate={handleUpdate}

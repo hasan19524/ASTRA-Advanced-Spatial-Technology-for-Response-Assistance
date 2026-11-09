@@ -57,8 +57,12 @@ const header = `/**
  * Regenerate:  npm run contracts:sync
  * Generated: ${new Date().toISOString()}
  */
-/* eslint-disable */
 `;
+
+/** A safe TS identifier, or a quoted string literal if it is not one. */
+function propName(name) {
+  return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name) ? name : JSON.stringify(name);
+}
 
 // Minimal but useful emission: schema components as TS interfaces
 const schemas = spec.components?.schemas ?? {};
@@ -71,7 +75,7 @@ for (const [name, schema] of Object.entries(schemas)) {
   for (const [prop, def] of Object.entries(props)) {
     const t = tsType(def);
     const opt = required.has(prop) ? "" : "?";
-    body += `  ${prop}${opt}: ${t};\n`;
+    body += `  ${propName(prop)}${opt}: ${t};\n`;
   }
   body += `}\n\n`;
 }
@@ -82,9 +86,27 @@ function tsType(def) {
   if (def.type === "string") return "string";
   if (def.type === "integer" || def.type === "number") return "number";
   if (def.type === "boolean") return "boolean";
+  // Pydantic v2 emits a nullable field as anyOf[T, null]. Without this the
+  // generator fell through to Record<string, unknown>, so `department` came
+  // out as `string | Record<string, unknown>` and every consumer had to
+  // cast it away.
+  if (def.type === "null") return "null";
   if (def.type === "array") return `Array<${tsType(def.items)}>`;
   if (def.enum) return def.enum.map((v) => JSON.stringify(v)).join(" | ");
-  if (def.anyOf) return def.anyOf.map(tsType).join(" | ");
+  // A typed dict (dict[str, int]) carries its value type in
+  // additionalProperties — without this it degraded to
+  // Record<string, unknown> and every consumer had to cast the numbers.
+  if (def.type === "object" && def.additionalProperties && typeof def.additionalProperties === "object") {
+    return `Record<string, ${tsType(def.additionalProperties)}>`;
+  }
+  if (def.anyOf) {
+    const parts = def.anyOf.map(tsType).filter((t, i, all) => all.indexOf(t) === i);
+    return parts.join(" | ");
+  }
+  if (def.oneOf) {
+    const parts = def.oneOf.map(tsType).filter((t, i, all) => all.indexOf(t) === i);
+    return parts.join(" | ");
+  }
   return "Record<string, unknown>";
 }
 

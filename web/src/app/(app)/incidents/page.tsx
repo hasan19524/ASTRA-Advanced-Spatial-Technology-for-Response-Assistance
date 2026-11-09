@@ -5,13 +5,13 @@
  * subscription that prepends any new public incident as it arrives (AD-10).
  * Phase filter removed — backend has no `phase` param (B4).
  */
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
+import { LinkButton } from "@/components/ui/LinkButton";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { useIncidents } from "@/stores/incidents";
 import type { IncidentOut } from "@/api/types";
@@ -64,7 +64,12 @@ export default function IncidentsPage() {
     {
       key: "id",
       header: "ID",
-      render: (r) => <span className="font-mono text-[var(--primary)]">{r.id}</span>,
+      className: "whitespace-nowrap",
+      render: (r) => (
+        <span className="font-mono text-[var(--primary)]">
+          {r.id.slice(0, 8)}…
+        </span>
+      ),
     },
     { key: "category", header: "Category", render: (r) => r.category },
     {
@@ -103,9 +108,9 @@ export default function IncidentsPage() {
         subtitle={`${total} incident${total !== 1 ? "s" : ""} · live feed over WebSocket`}
         actions={
           can("report.create") ? (
-            <Link href="/report">
-              <Button variant="primary">+ Report Incident</Button>
-            </Link>
+            <LinkButton href="/report" variant="primary">
+              + Report Incident
+            </LinkButton>
           ) : undefined
         }
       />
@@ -230,7 +235,7 @@ function Select({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[11px] text-[var(--muted)] focus:border-[var(--primary)] focus:outline-none"
+      className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[11px] text-[var(--muted)] focus:border-[var(--primary)] focus:outline-none min-h-10 [@media(pointer:coarse)]:py-2"
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>

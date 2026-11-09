@@ -61,6 +61,13 @@ _GRAPH_CACHE: dict = {
     "nxt": None,  # array('i') per edge -> next edge index
     "to": None,  # array('i') per edge -> destination node index
     "wt": None,  # array('d') per edge -> weight (seconds)
+    "lat": None,  # array('d') per node -> latitude
+    "lon": None,  # array('d') per node -> longitude
+    # bytearray per node -> 1 when the node has at least one outgoing edge.
+    # A node with no outgoing edge is a dead-end stub: routing INTO it
+    # works, but routing OUT of it does not, so it is a poor snap target
+    # for "route from here".
+    "live": None,
     "ready_at": None,  # float monotonic timestamp of the last successful build
 }
 
@@ -79,6 +86,9 @@ def reset_graph_cache() -> None:
             "nxt": None,
             "to": None,
             "wt": None,
+            "lat": None,
+            "lon": None,
+            "live": None,
             "ready_at": None,
         }
     )
@@ -90,14 +100,25 @@ def graph_ready() -> bool:
     return _READY
 
 
-async def _load_nodes(db: AsyncSession) -> tuple[list[str], dict[str, int]]:
+async def _load_nodes(
+    db: AsyncSession,
+) -> tuple[list[str], dict[str, int], array, array]:
+    """Load node ids + coordinates in bounded chunks.
+
+    The coordinates are kept in flat float64 arrays (8 bytes per value, so
+    ~6.5 MB for the whole NCR graph) instead of Python floats in a list
+    (~24 bytes per value + list overhead) — that keeps the resident set
+    inside the free-tier container budget.
+    """
     ids: list[str] = []
     index: dict[str, int] = {}
+    lat = array("d")
+    lon = array("d")
     last = ""
     while True:
         rows = (
             await db.execute(
-                select(MapLocation.id)
+                select(MapLocation.id, MapLocation.latitude, MapLocation.longitude)
                 .where(MapLocation.id > last)
                 .order_by(MapLocation.id)
                 .limit(_CHUNK)
@@ -105,20 +126,23 @@ async def _load_nodes(db: AsyncSession) -> tuple[list[str], dict[str, int]]:
         ).all()
         if not rows:
             break
-        for (nid,) in rows:
+        for nid, latitude, longitude in rows:
             index[nid] = len(ids)
             ids.append(nid)
+            lat.append(latitude)
+            lon.append(longitude)
         last = rows[-1][0]
-    return ids, index
+    return ids, index, lat, lon
 
 
 async def _load_edges(
     db: AsyncSession, ids: list[str], index: dict[str, int]
-) -> tuple[array, array, array, array]:
+) -> tuple[array, array, array, array, bytearray]:
     head = array("i", [-1]) * len(ids) if ids else array("i")
     to = array("i")
     nxt = array("i")
     wt = array("d")
+    live = bytearray(len(ids))
 
     last = ""
     while True:
@@ -150,16 +174,27 @@ async def _load_edges(
             wt.append(travel_s * (factor or 1.0))
             nxt.append(head[fi])
             head[fi] = len(to) - 1
+            live[fi] = 1
         last = rows[-1][0]
-    return head, nxt, to, wt
+    return head, nxt, to, wt, live
 
 
 async def _load_graph(db: AsyncSession) -> None:
     """Load the whole graph into flat arrays (chunked, no full buffering)."""
-    ids, index = await _load_nodes(db)
-    head, nxt, to, wt = await _load_edges(db, ids, index)
+    ids, index, lat, lon = await _load_nodes(db)
+    head, nxt, to, wt, live = await _load_edges(db, ids, index)
     _GRAPH_CACHE.update(
-        {"ids": ids, "index": index, "head": head, "nxt": nxt, "to": to, "wt": wt}
+        {
+            "ids": ids,
+            "index": index,
+            "head": head,
+            "nxt": nxt,
+            "to": to,
+            "wt": wt,
+            "lat": lat,
+            "lon": lon,
+            "live": live,
+        }
     )
 
 
@@ -202,6 +237,8 @@ async def shortest_path(db: AsyncSession, from_id: str, to_id: str) -> dict:
     nxt = _GRAPH_CACHE["nxt"]
     to = _GRAPH_CACHE["to"]
     wt = _GRAPH_CACHE["wt"]
+    lat = _GRAPH_CACHE["lat"]
+    lon = _GRAPH_CACHE["lon"]
 
     src = index.get(from_id)
     dst = index.get(to_id)
@@ -230,7 +267,21 @@ async def shortest_path(db: AsyncSession, from_id: str, to_id: str) -> dict:
             e = nxt[e]
 
     if dst not in dist:
-        return {"error": "no path"}
+        # The seeded OSM extract is 98.8% one connected component
+        # (measured: 401,105 of 406,154 nodes; `api/scripts/
+        # graph_components.py` reproduces the number). The remaining
+        # 5,049 nodes sit in ~486 small fragments — dead ends, private
+        # drives and service lanes that OSM does not link into the main
+        # network. Routing between two such points genuinely has no path,
+        # and saying so beats drawing a straight line that no car can
+        # drive.
+        return {
+            "error": (
+                "no route between these points — they sit in separate parts "
+                "of the Delhi NCR road network (98.8% of OSM nodes are "
+                "connected; the rest are isolated fragments)"
+            )
+        }
 
     path: list[int] = []
     cur = dst
@@ -245,9 +296,74 @@ async def shortest_path(db: AsyncSession, from_id: str, to_id: str) -> dict:
         "to": to_id,
         "distance_seconds": round(dist[dst], 2),
         "path": [ids[i] for i in path],
+        # The coordinates of every node on the path — this is what the map
+        # draws. Without them the client could only show "a path exists",
+        # not the route itself.
+        "path_coords": [[lat[i], lon[i]] for i in path],
     }
 
 
 async def list_locations(db: AsyncSession, limit: int = 100) -> list[MapLocation]:
     rows = (await db.scalars(select(MapLocation).limit(limit))).all()
     return list(rows)
+
+
+async def nearest_node(
+    db: AsyncSession, latitude: float, longitude: float
+) -> dict | None:
+    """Find the closest graph node to a point.
+
+    The map routes between places that are NOT graph nodes — an incident
+    pin, a geocoded address, the user's own position. Snapping to the
+    nearest junction first is what makes "route from this incident to that
+    hospital" possible on a node-to-node graph.
+
+    A linear scan over the flat coordinate arrays is ~400k float compares
+    (well under a tenth of a second) and needs no extra index in the
+    database.
+    """
+    ready = await build_graph(db)
+    if not ready:
+        return None
+
+    ids: list[str] = _GRAPH_CACHE["ids"]
+    lat = _GRAPH_CACHE["lat"]
+    lon = _GRAPH_CACHE["lon"]
+    live = _GRAPH_CACHE["live"]
+
+    # Longitude degrees shrink with latitude; at Delhi's latitude a degree
+    # of longitude is ~cos(28.6°) ≈ 0.878 of a degree of latitude. Without
+    # this the "nearest" node would be biased north-south.
+    import math
+
+    lon_scale = math.cos(math.radians(latitude)) or 1.0
+
+    # Two passes: first look for a node that has outgoing edges (a real
+    # junction you can drive out of). Only if nothing nearby qualifies do
+    # we fall back to the geometrically nearest node, even a dead end —
+    # a route to it is still a route, a route out of it is not.
+    best_i = -1
+    best_d = float("inf")
+    best_live_i = -1
+    best_live_d = float("inf")
+    for i in range(len(ids)):
+        dlat = lat[i] - latitude
+        dlon = (lon[i] - longitude) * lon_scale
+        d = dlat * dlat + dlon * dlon
+        if d < best_d:
+            best_d = d
+            best_i = i
+        if live[i] and d < best_live_d:
+            best_live_d = d
+            best_live_i = i
+
+    chosen = best_live_i if best_live_i >= 0 else best_i
+    if chosen < 0:
+        return None
+    return {
+        "id": ids[chosen],
+        "latitude": lat[chosen],
+        "longitude": lon[chosen],
+        "distance_m": round(math.sqrt(best_d) * 111_320.0, 1),
+        "is_junction": bool(live[chosen]),
+    }

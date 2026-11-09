@@ -1,6 +1,6 @@
 """Response tasks — Phase 2: CRUD + assignment + progress updates."""
 
-from fastapi import APIRouter, Depends, Path, status
+from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db, require_permission
@@ -15,6 +15,35 @@ from app.schemas.task import (
 from app.services import task_service as svc
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
+
+
+@router.get("", response_model=list[TaskOut])
+async def list_all_tasks(
+    status_filter: str | None = Query(
+        None, alias="status", pattern="^(OPEN|IN_PROGRESS|DONE)$"
+    ),
+    department: str | None = Query(None),
+    incident_id: str | None = Query(None),
+    assigned_to_me: bool = Query(False),
+    limit: int = Query(100, ge=1, le=500),
+    user: User = Depends(require_permission("task.view")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Role-scoped task list — the dispatch board behind /teams.
+
+    CENTRAL_ADMIN sees every task, DEPARTMENT_HEAD sees their department,
+    RESPONSE_TEAM sees only the tasks they are assigned to.
+    """
+    rows = await svc.list_tasks_scoped(
+        db,
+        user,
+        task_status=status_filter,
+        department=department,
+        incident_id=incident_id,
+        assigned_to_me=assigned_to_me,
+        limit=limit,
+    )
+    return [await svc.to_out(db, t) for t in rows]
 
 
 @router.get("/{task_id}", response_model=TaskOut)

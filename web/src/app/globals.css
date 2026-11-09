@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
 
 /* ============================================================
    ASTRA design tokens (1.1) — dark command-center theme
@@ -127,3 +128,122 @@ body {
 .tone-minor      { color: #dcfce7; background: rgba(34, 197, 94, 0.15); }
 .tone-info       { color: #dbeafe; background: rgba(59, 130, 246, 0.15); }
 .tone-neutral    { color: #e2e8f0; background: rgba(100, 116, 139, 0.2); }
+
+/* ============================================================
+   Leaflet overrides + ASTRA pin markers
+   Leaflet ships a light-theme chrome; the operational map is a dark
+   command-centre surface, so the panes, controls and attribution are
+   re-tokened here instead of being overridden inline in JSX.
+   ============================================================ */
+
+.astra-map {
+  --leaflet-bg: var(--surface-3);
+  background: var(--surface-3);
+  z-index: 0;
+}
+
+/* The "dark" basemap is the same real OpenStreetMap raster tiles with a
+   filter applied. Using one key-free provider and filtering it keeps the
+   command-centre look without a second (now API-key-gated) tile service
+   and without any broken "API KEY REQUIRED" placeholder tiles.
+   The state lives in a data attribute: a `--` suffix in a class name is
+   parsed by Tailwind as a variant and the rule gets dropped. */
+.astra-map[data-basemap="dark"] .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.86) contrast(0.92)
+    saturate(0.65);
+}
+
+.astra-map .leaflet-container {
+  background: var(--surface-3);
+  font-family: inherit;
+  outline: none;
+}
+
+/* The attribution is legally required for OSM/CARTO tiles — keep it
+   readable but unobtrusive. */
+.astra-map .leaflet-control-attribution {
+  background: rgba(15, 23, 42, 0.82);
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+  padding: 1px 6px;
+  border-top-left-radius: 6px;
+}
+.astra-map .leaflet-control-attribution a {
+  color: var(--primary);
+}
+
+.astra-map .leaflet-bar {
+  border: 1px solid var(--border-strong);
+  box-shadow: none;
+}
+/* Leaflet's own zoom buttons are 24 px by default — below the 40 px
+   tap-target floor. */
+.astra-map .leaflet-bar a {
+  background: var(--surface);
+  color: var(--foreground);
+  border-bottom: 1px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  min-height: 34px;
+  font-size: 15px;
+  line-height: 1;
+}
+@media (pointer: coarse) {
+  .astra-map .leaflet-bar a {
+    min-width: 40px;
+    min-height: 40px;
+  }
+}
+.astra-map .leaflet-bar a:hover {
+  background: var(--surface-2);
+  color: var(--foreground);
+}
+
+.astra-map .leaflet-tooltip {
+  background: var(--surface);
+  color: var(--foreground);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  font-size: 11px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.astra-map .leaflet-tooltip::before {
+  border-top-color: var(--border-strong);
+}
+
+/* Pin markers — a filled circle with a soft halo so they stay legible
+   on both the dark and the street basemap. */
+.astra-pin-wrap {
+  background: transparent;
+  border: 0;
+}
+
+.astra-pin {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.35), 0 0 14px rgba(0, 0, 0, 0.55);
+  transform: translate(-50%, -50%);
+  transition: transform 120ms ease;
+}
+
+.astra-pin--me {
+  background: #38bdf8;
+  border-color: #e0f2fe;
+  animation: astra-pulse 1.8s ease-out infinite;
+}
+
+@keyframes astra-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.55), 0 0 14px rgba(0,0,0,.55); }
+  70%  { box-shadow: 0 0 0 12px rgba(56, 189, 248, 0), 0 0 14px rgba(0,0,0,.55); }
+  100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0), 0 0 14px rgba(0,0,0,.55); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .astra-pin--me { animation: none; }
+}

@@ -106,9 +106,19 @@ async def test_ws_publish_suppressed_for_restricted_rows(tc, monkeypatch):
 
     published: list[str] = []
 
-    async def spy(channel: str, message: str) -> None:
-        published.append(message)
+    class _FakePool:
+        """Stand-in for the Redis client.
 
-    monkeypatch.setattr(map_ws.pool(), "publish", spy)
+        A real `Redis.from_url(...)` would open a connection owned by THIS
+        test's event loop, while the app under test runs on the anyio
+        portal loop — two loops, two clients, and a shutdown that closes
+        the wrong one. The publish rule does not need a live Redis: what
+        matters is whether `publish` is called at all.
+        """
+
+        async def publish(self, channel: str, message: str) -> None:
+            published.append(message)
+
+    monkeypatch.setattr(map_ws, "pool", lambda: _FakePool())
     await map_ws.publish_incident_created(inc)
     assert published == []  # suppressed — not PUBLIC

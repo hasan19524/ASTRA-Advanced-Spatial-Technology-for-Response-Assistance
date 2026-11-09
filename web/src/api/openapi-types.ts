@@ -1,9 +1,8 @@
 /**
  * AUTO-GENERATED from http://localhost:8000/openapi.json — do not edit by hand.
  * Regenerate:  npm run contracts:sync
- * Generated: 2026-11-02T09:24:54.349Z
+ * Generated: 2026-11-08T09:46:54.337Z
  */
-/* eslint-disable */
 export interface AlertCreateIn {
   event: string;
   title: string;
@@ -12,7 +11,7 @@ export interface AlertCreateIn {
   urgency?: string;
   certainty?: string;
   area?: string;
-  expires_at?: string | Record<string, unknown>;
+  expires_at?: string | null;
 }
 
 export interface AlertOut {
@@ -24,22 +23,22 @@ export interface AlertOut {
   urgency: string;
   certainty: string;
   area: string;
-  published_by?: string | Record<string, unknown>;
-  expires_at?: string | Record<string, unknown>;
+  published_by?: string | null;
+  expires_at?: string | null;
   created_at: string;
 }
 
 export interface AlertPrefIn {
-  region?: string | Record<string, unknown>;
-  category?: string | Record<string, unknown>;
+  region?: string | null;
+  category?: string | null;
   enabled?: boolean;
 }
 
 export interface AlertPrefOut {
   id: string;
   user_id: string;
-  region?: string | Record<string, unknown>;
-  category?: string | Record<string, unknown>;
+  region?: string | null;
+  category?: string | null;
   enabled: boolean;
   created_at: string;
 }
@@ -48,8 +47,8 @@ export interface AssessmentOut {
   id: string;
   backend: string;
   outcome: string;
-  confidence?: number | Record<string, unknown>;
-  reason?: string | Record<string, unknown>;
+  confidence?: number | null;
+  reason?: string | null;
   created_at: string;
 }
 
@@ -62,24 +61,33 @@ export interface Body_submit_report_api_v1_incidents_post {
   title: string;
   description: string;
   category: string;
-  region?: string | Record<string, unknown>;
-  latitude?: number | Record<string, unknown>;
-  longitude?: number | Record<string, unknown>;
-  location_text?: string | Record<string, unknown>;
-  photo?: string | Record<string, unknown>;
+  region?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  location_text?: string | null;
+  photo?: string | null;
 }
 
 export interface CloseIn {
-  note?: string | Record<string, unknown>;
+  note?: string | null;
 }
 
 export interface ConvIn {
-  title?: string | Record<string, unknown>;
+  title?: string | null;
   language?: string;
 }
 
 export interface DemoLoginRequest {
   email: string;
+}
+
+export interface DepartmentOut {
+  name: string;
+  head_name?: string | null;
+  head_email?: string | null;
+  personnel_count?: number;
+  open_tasks?: number;
+  total_tasks?: number;
 }
 
 export interface HTTPValidationError {
@@ -89,12 +97,12 @@ export interface HTTPValidationError {
 export interface IncidentCreatedOut {
   id: string;
   title: string;
-  description?: string | Record<string, unknown>;
+  description?: string | null;
   category: string;
-  region?: string | Record<string, unknown>;
+  region?: string | null;
   latitude: number;
   longitude: number;
-  location_text?: string | Record<string, unknown>;
+  location_text?: string | null;
   sensitivity: string;
   assessment_status: string;
   visibility: string;
@@ -110,12 +118,12 @@ export interface IncidentCreatedOut {
 export interface IncidentDetailOut {
   id: string;
   title: string;
-  description?: string | Record<string, unknown>;
+  description?: string | null;
   category: string;
-  region?: string | Record<string, unknown>;
+  region?: string | null;
   latitude: number;
   longitude: number;
-  location_text?: string | Record<string, unknown>;
+  location_text?: string | null;
   sensitivity: string;
   assessment_status: string;
   visibility: string;
@@ -133,12 +141,12 @@ export interface IncidentDetailOut {
 export interface IncidentOut {
   id: string;
   title: string;
-  description?: string | Record<string, unknown>;
+  description?: string | null;
   category: string;
-  region?: string | Record<string, unknown>;
+  region?: string | null;
   latitude: number;
   longitude: number;
-  location_text?: string | Record<string, unknown>;
+  location_text?: string | null;
   sensitivity: string;
   assessment_status: string;
   visibility: string;
@@ -173,8 +181,8 @@ export interface PhaseIn {
 
 export interface PollOut {
   eligible: boolean;
-  reason?: string | Record<string, unknown>;
-  my_vote?: string | Record<string, unknown>;
+  reason?: string | null;
+  my_vote?: string | null;
   genuine?: number;
   fake?: number;
   percent_genuine?: number;
@@ -182,6 +190,14 @@ export interface PollOut {
 
 export interface PollVoteIn {
   vote: string;
+}
+
+export interface RecentClosure {
+  id: string;
+  title: string;
+  category: string;
+  region?: string | null;
+  closed_at: string;
 }
 
 export interface RefreshRequest {
@@ -202,7 +218,8 @@ export interface ReportOut {
   id: string;
   content: string;
   source: string;
-  media_path?: string | Record<string, unknown>;
+  media_path?: string | null;
+  media_url?: string | null;
   created_at: string;
 }
 
@@ -213,24 +230,30 @@ export interface SimRunIn {
 }
 
 export interface StatsOut {
-  total_incidents?: number;
-  open_incidents?: number;
-  closed_incidents?: number;
-  verified_incidents?: number;
-  rejected_incidents?: number;
-  public_unverified_incidents?: number;
-  hidden_incidents?: number;
-  restricted_incidents?: number;
-  active_tasks?: number;
-  done_tasks?: number;
-  poll_participation_rate?: number;
-  active_alerts?: number;
+  total_incidents: number;
+  open_incidents: number;
+  closed_incidents: number;
+  verified_incidents: number;
+  rejected_incidents: number;
+  public_unverified_incidents: number;
+  hidden_incidents: number;
+  restricted_incidents: number;
+  active_tasks: number;
+  done_tasks: number;
+  poll_participation_rate: number;
+  active_alerts: number;
+  by_category: Record<string, number>;
+  incidents_7d: number;
+  incidents_previous_7d: number;
+  avg_verify_minutes: number | null;
+  poll_officer_agreement: number | null;
+  recent_closures: Array<RecentClosure>;
 }
 
 export interface TaskCreateIn {
   title: string;
-  description?: string | Record<string, unknown>;
-  department?: string | Record<string, unknown>;
+  description?: string | null;
+  department?: string | null;
   assignee_ids?: Array<string>;
 }
 
@@ -238,7 +261,7 @@ export interface TaskOut {
   id: string;
   incident_id: string;
   title: string;
-  description?: string | Record<string, unknown>;
+  description?: string | null;
   department: string;
   status: string;
   assignee_ids?: Array<string>;
@@ -248,15 +271,15 @@ export interface TaskOut {
 }
 
 export interface TaskPatchIn {
-  title?: string | Record<string, unknown>;
-  description?: string | Record<string, unknown>;
-  department?: string | Record<string, unknown>;
-  status?: string | Record<string, unknown>;
+  title?: string | null;
+  description?: string | null;
+  department?: string | null;
+  status?: string | null;
 }
 
 export interface TaskUpdateIn {
-  status?: string | Record<string, unknown>;
-  note?: string | Record<string, unknown>;
+  status?: string | null;
+  note?: string | null;
 }
 
 export interface TaskUpdateOut {
@@ -264,7 +287,7 @@ export interface TaskUpdateOut {
   task_id: string;
   author_id: string;
   status: string;
-  note?: string | Record<string, unknown>;
+  note?: string | null;
   created_at: string;
 }
 
@@ -275,12 +298,21 @@ export interface TokenResponse {
   user: UserOut;
 }
 
+export interface UserDirectoryOut {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  department?: string | null;
+  permissions?: Array<string>;
+}
+
 export interface UserOut {
   id: string;
   email: string;
   full_name: string;
   role: string;
-  department?: string | Record<string, unknown>;
+  department?: string | null;
   permissions: Array<string>;
 }
 
@@ -292,7 +324,7 @@ export interface ValidationError {
 
 export interface VerificationDecisionOut {
   action: string;
-  reason?: string | Record<string, unknown>;
+  reason?: string | null;
   officer_id: string;
   created_at: string;
 }
@@ -300,13 +332,13 @@ export interface VerificationDecisionOut {
 export interface VerificationEventOut {
   id: string;
   action: string;
-  reason?: string | Record<string, unknown>;
-  officer?: string | Record<string, unknown>;
+  reason?: string | null;
+  officer?: string | null;
   created_at: string;
 }
 
 export interface VerifyIn {
   verdict: string;
-  reason?: string | Record<string, unknown>;
+  reason?: string | null;
 }
 

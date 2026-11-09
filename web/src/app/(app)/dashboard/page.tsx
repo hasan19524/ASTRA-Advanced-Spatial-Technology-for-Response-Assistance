@@ -1,29 +1,65 @@
 "use client";
+import Link from "next/link";
 /**
  * Dashboard (task 2.4) — one shell, cards switch by role.
  * CENTRAL_ADMIN sees the full reference-design overview; other roles get
  * their own distinct card set. Data from the mock layer (API fallback).
  */
-import Link from "next/link";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { UnavailableState } from "@/components/ui/UnavailableState";
-import { MapPlaceholder } from "@/components/map/MapPlaceholder";
-import { Button } from "@/components/ui/Button";
+import LiveMap from "@/components/map/LiveMap";
+import { LinkButton } from "@/components/ui/LinkButton";
 import { useAuthSession } from "@/hooks/useAuth";
 import { useIncidents } from "@/stores/incidents";
 import { useStats } from "@/stores/stats";
 import { StatGrid } from "@/components/stats/StatGrid";
 import { CategoryBreakdown } from "@/components/stats/CategoryBreakdown";
 import { ROLE_LABELS, type Role } from "@/lib/constants";
+import { request } from "@/api/client";
+
+interface DepartmentLoad {
+  name: string;
+  head_name: string | null;
+  personnel_count: number;
+  open_tasks: number;
+  total_tasks: number;
+}
+
+interface AuditEntry {
+  id: string;
+  actor_label: string | null;
+  action: string;
+  method: string;
+  path: string;
+  status_code: number;
+  created_at: string;
+}
+
+/** Fetch the department load. Module scope on purpose: the effect below owns
+ *  the state write, so the panel never renders stale data from another role. */
+async function fetchDepartmentLoad(token: string | null): Promise<DepartmentLoad[]> {
+  const data = await request<DepartmentLoad[]>("/api/v1/departments", { token });
+  return Array.isArray(data) ? data : [];
+}
+
+/** Fetch the newest audit rows — the real activity feed for admins. */
+async function fetchActivity(token: string | null): Promise<AuditEntry[]> {
+  const data = await request<AuditEntry[]>("/api/v1/audit/logs?limit=8", {
+    token,
+  });
+  return Array.isArray(data) ? data : [];
+}
 
 export default function DashboardPage() {
   const { user, can, token } = useAuthSession();
   const { items, load, loading, error } = useIncidents();
   const { stats, load: loadStats } = useStats();
+  const [departmentLoad, setDepartmentLoad] = useState<DepartmentLoad[]>([]);
+  const [activity, setActivity] = useState<AuditEntry[]>([]);
 
   const dateStr = useMemo(
     () =>
@@ -41,9 +77,47 @@ export default function DashboardPage() {
   });
 
   useEffect(() => {
-    void load({}, token);
+    // The dashboard map needs a wide view of Delhi NCR, not the first page
+    // of 20 the incidents table uses.
+    void load({ limit: 200 }, token);
     void loadStats(token);
   }, [load, loadStats, token]);
+
+  // Real activity feed — the audit log. Only admins hold `audit.read`,
+  // so for every other role the panel keeps its honest "not available"
+  // state instead of pretending.
+  const canReadAudit = can("audit.read");
+  useEffect(() => {
+    if (!canReadAudit) return;
+    let cancelled = false;
+    fetchActivity(token)
+      .then((list) => {
+        if (!cancelled) setActivity(list);
+      })
+      .catch(() => {
+        if (!cancelled) setActivity([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [canReadAudit, token]);
+
+  // Real department load (staff only) — replaces the invented unit counts.
+  const canViewDirectory = can("task.view");
+  useEffect(() => {
+    if (!canViewDirectory) return;
+    let cancelled = false;
+    fetchDepartmentLoad(token)
+      .then((list) => {
+        if (!cancelled) setDepartmentLoad(list);
+      })
+      .catch(() => {
+        if (!cancelled) setDepartmentLoad([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [canViewDirectory, token]);
 
   const role = (user?.role ?? "CITIZEN") as Role;
   const recent = useMemo(() => items.slice(0, 5), [items]);
@@ -59,9 +133,9 @@ export default function DashboardPage() {
               {dateStr}
             </span>
             {can("report.create") && (
-              <Link href="/report">
-                <Button variant="primary">+ Report Incident</Button>
-              </Link>
+              <LinkButton href="/report" variant="primary">
+                + Report Incident
+              </LinkButton>
             )}
           </>
         }
@@ -111,17 +185,63 @@ export default function DashboardPage() {
             }
             padding={false}
           >
-            <MapPlaceholder className="border-0 rounded-b-xl" selectedId={null} />
+            <LiveMap
+              incidents={items}
+              selectedId={null}
+              onSelect={() => undefined}
+              route={null}
+              closures={[]}
+              showIncidents
+              showRoute={false}
+              showClosures={false}
+              showBasemapSwitcher={false}
+              className="h-[320px] rounded-b-xl"
+            />
           </Card>
         </div>
 
-        {/* activity feed — no live activity endpoint yet; honest empty state */}
+        {/* activity feed — the real audit log for admins; honest empty
+            state for roles without `audit.read` */}
         <Card title="Recent Activity">
-          <EmptyState
-            title="Live activity feed unavailable"
-            body="The activity feed endpoint is not built yet. Incidents are shown in the table below."
-            icon="◐"
-          />
+          {canReadAudit && activity.length > 0 ? (
+            <ul className="space-y-2.5">
+              {activity.map((a) => (
+                <li key={a.id} className="border-b border-[var(--border)] pb-2 last:border-0 last:pb-0">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="truncate text-[11px] font-medium">
+                      {a.actor_label ?? a.action}
+                    </span>
+                    <span
+                      className={`shrink-0 font-mono text-[9px] ${
+                        a.status_code >= 400
+                          ? "text-[var(--danger)]"
+                          : "text-[var(--subtle)]"
+                      }`}
+                    >
+                      {a.method} {a.status_code}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 truncate font-mono text-[9px] text-[var(--subtle)]">
+                    {a.action} · {a.path}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState
+              title={
+                canReadAudit
+                  ? "No activity recorded yet"
+                  : "Activity feed is admin-only"
+              }
+              body={
+                canReadAudit
+                  ? "Every write action on the platform is logged here as it happens."
+                  : "Your role cannot read the audit log. The backend enforces this — the UI is just being polite."
+              }
+              icon="◐"
+            />
+          )}
         </Card>
       </div>
 
@@ -161,7 +281,8 @@ export default function DashboardPage() {
                     />
                   </div>
                 ) : (
-                  <table className="w-full text-left text-[11px]">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[820px] text-left text-[11px]">
                     <thead>
                       <tr className="border-b border-[var(--border)] text-[var(--muted)]">
                         <th className="px-4 py-2.5 font-medium">ID</th>
@@ -203,6 +324,7 @@ export default function DashboardPage() {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 )}
               </Card>
             </div>
@@ -218,20 +340,23 @@ export default function DashboardPage() {
                 </ol>
               ) : (
                 <ul className="space-y-2 text-xs">
-                  {[
-                    ["Police", "12 units"],
-                    ["Fire & Rescue", "6 units"],
-                    ["Medical/EMS", "8 units"],
-                    ["Transport & Roads", "4 units"],
-                    ["Disaster Management", "3 units"],
-                    ["Electricity/Utilities", "5 units"],
-                    ["Water & Drainage", "4 units"],
-                  ].map(([name, units]) => (
-                    <li key={name} className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2">
-                      <span>{name}</span>
-                      <span className="text-[10px] text-[var(--muted)]">{units}</span>
+                  {departmentLoad.length === 0 ? (
+                    <li className="text-[11px] text-[var(--muted)]">
+                      Department load appears here once the directory is reachable.
                     </li>
-                  ))}
+                  ) : (
+                    departmentLoad.map((d) => (
+                      <li
+                        key={d.name}
+                        className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2"
+                      >
+                        <span>{d.name}</span>
+                        <span className="text-[10px] text-[var(--muted)]">
+                          {d.open_tasks} open · {d.personnel_count} personnel
+                        </span>
+                      </li>
+                    ))
+                  )}
                 </ul>
               )}
             </Card>

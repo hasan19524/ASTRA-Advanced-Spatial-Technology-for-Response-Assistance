@@ -24,6 +24,13 @@ export default defineConfig({
       testMatch: ["**/officer.spec.*", "**/trust-arc.spec.*"],
       use: { ...devices["Desktop Chrome"] },
     },
+    {
+      // The map and the assistant are available to every role, so they get
+      // their own project instead of running twice under citizen + officer.
+      name: "surface",
+      testMatch: ["**/map.spec.*", "**/assistant.spec.*"],
+      use: { ...devices["Desktop Chrome"] },
+    },
   ],
   webServer: {
     command: "npm run dev",

@@ -1,20 +1,29 @@
 "use client";
-/** Settings — profile, role/permission inspector, language slot (AD-16). */
+/** Settings — profile, role/permission inspector, voice language (AD-16). */
+import { useEffect } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/Button";
 import { useAuthSession } from "@/hooks/useAuth";
+import { useVoiceLanguage } from "@/stores/voiceLanguage";
 import { ROLE_LABELS, type Role } from "@/lib/constants";
 import Link from "next/link";
 
-const LANGUAGES = [
-  "हिन्दी", "বাংলা", "తెలుగు", "मराठी", "தமிழ்", "ગુજરાતી", "ಕನ್ನಡ",
-  "മലയാളം", "ଓଡ଼ିଆ", "ਪੰਜਾਬੀ", "অসমীয়া", "English",
-];
-
 export default function SettingsPage() {
-  const { user, can, logout } = useAuthSession();
+  const { user, can, logout, token } = useAuthSession();
+  const {
+    languages,
+    selected,
+    loading,
+    error,
+    load,
+    select,
+  } = useVoiceLanguage();
+
+  useEffect(() => {
+    void load(token);
+  }, [load, token]);
 
   return (
     <div className="max-w-3xl">
@@ -67,26 +76,41 @@ export default function SettingsPage() {
 
         <Card
           title="Voice language"
-          subtitle="AD-16 — all Indian languages Gnani supports; selector wires up on Day 7"
+          subtitle="AD-16 — the languages the voice proxy accepts, from GET /voice/languages"
         >
-          <div className="flex flex-wrap gap-1.5">
-            {LANGUAGES.map((l, idx) => (
-              <button
-                key={l}
-                disabled={idx !== 0 && idx !== 11}
-                className={`rounded-md border px-2.5 py-1.5 text-[11px] ${
-                  idx === 0
-                    ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[#dbeafe]"
-                    : "border-[var(--border)] bg-[var(--background)] text-[var(--muted)] opacity-60"
-                }`}
-              >
-                {l}
-              </button>
-            ))}
-          </div>
+          {loading && languages.length <= 2 ? (
+            <p className="text-[11px] text-[var(--muted)]">Loading languages…</p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {languages.map((l) => {
+                const active = l.code === selected;
+                return (
+                  <button
+                    key={l.code}
+                    onClick={() => select(l.code)}
+                    aria-pressed={active}
+                    className={`rounded-md border px-2.5 py-1.5 text-[11px] transition-colors min-h-10 [@media(pointer:coarse)]:py-2 ${
+                      active
+                        ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[#dbeafe]"
+                        : "border-[var(--border)] bg-[var(--background)] text-[var(--muted)] hover:border-[var(--border-strong)] hover:text-[var(--foreground)]"
+                    }`}
+                  >
+                    {l.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {error && (
+            <p className="mt-2 text-[10px] text-[var(--warning)]">{error}</p>
+          )}
           <p className="mt-2 text-[10px] text-[var(--subtle)]">
             UI chrome stays English (no i18n framework in scope). Only voice
-            features switch language.
+            features switch language — the report form’s microphone uses{" "}
+            <span className="font-mono">
+              {languages.find((l) => l.code === selected)?.name ?? selected}
+            </span>
+            .
           </p>
         </Card>
 

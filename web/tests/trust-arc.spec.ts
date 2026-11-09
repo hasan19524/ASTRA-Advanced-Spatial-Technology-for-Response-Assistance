@@ -4,10 +4,20 @@ const BASE = "http://localhost:3000";
 const AMBER = "rgb(245, 158, 11)";
 const GREEN = "rgb(34, 197, 94)";
 
+/**
+ * The pin colour lives on the coloured dot inside the Leaflet marker.
+ * The marker element itself carries `data-incident-id` (the human-readable
+ * incident title is in its `title` attribute, which is its accessible
+ * name) — so the test matches on the id, not on the title.
+ */
 async function pinColor(page: Page, incidentId: string) {
-  return page.locator(`button[title*="${incidentId}"]`).evaluate(
-    (el: HTMLElement) => getComputedStyle(el).backgroundColor,
-  );
+  return page
+    .locator(`.leaflet-marker-icon[data-incident-id*="${incidentId}"] .astra-pin`)
+    .evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor);
+}
+
+function pinLocator(page: Page, incidentId: string) {
+  return page.locator(`.leaflet-marker-icon[data-incident-id*="${incidentId}"]`);
 }
 
 test.describe("citizen trust arc", () => {
@@ -42,7 +52,7 @@ test.describe("citizen trust arc", () => {
 
     // ---- Pin appears (WS push) < 1s ----
     const pinT0 = Date.now();
-    const pin = mapPage.locator(`button[title*="${incidentId}"]`);
+    const pin = pinLocator(mapPage, incidentId);
     await pin.waitFor({ state: "visible", timeout: 15000 });
     timings["pin_appears"] = Date.now() - pinT0;
     expect(await pinColor(mapPage, incidentId)).toBe(AMBER);

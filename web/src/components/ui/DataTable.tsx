@@ -30,7 +30,9 @@ export function DataTable<T>({
 
   return (
     <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--surface)]">
-      <table className="w-full text-left text-xs">
+      {/* min-w keeps the columns readable on a phone: the table scrolls
+          sideways instead of squeezing a UUID into four wrapped lines. */}
+      <table className="w-full min-w-[720px] text-left text-xs">
         <thead>
           <tr className="border-b border-[var(--border)] text-[var(--muted)]">
             {columns.map((c) => (

@@ -23,7 +23,10 @@ export function Button({
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {
   return (
     <button
-      className={`inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${STYLES[variant]} ${className}`}
+      // py-1.5 keeps the reference density on a desktop; on a phone the
+      // vertical padding grows so every button clears the 40 px tap-target
+      // floor (WCAG 2.5.8 / iOS HIG).
+      className={`inline-flex min-h-[2rem] items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0 sm:py-1.5 [@media(pointer:coarse)]:min-h-10 [@media(pointer:coarse)]:py-2 ${STYLES[variant]} ${className}`}
       {...props}
     />
   );

@@ -1,8 +1,16 @@
-"""Simulation service — Phase 3 (PL-14: simple documented heuristics)."""
+"""Simulation service — Phase 3 (PL-14: simple documented heuristics).
+
+Every figure the simulation screen shows comes from this module. The screen
+used to render hard-coded cards ("12.5 km²", "45,000+ people", "₹320 Cr")
+regardless of the inputs — it looked alive and said nothing true. Now the
+inputs (scenario, category, radius, intensity) decide the output, and the
+summary states plainly that it is a heuristic, not a forecast.
+"""
 
 from __future__ import annotations
 
 import json
+import math
 from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +30,14 @@ CATEGORY_FACTORS = {
 }
 
 NCR_POPULATION = 30_000_000
+# Delhi NCR spans roughly 50 km across; the area term below is scaled to it.
+NCR_RADIUS_KM = 50.0
+# Average people per square kilometre inside the footprint, used to turn the
+# affected area into an affected-population estimate.
+DENSITY_PER_KM2 = 5_500
+# One key-infrastructure asset per N square kilometres (hospital, bridge,
+# substation, shelter…).
+INFRA_PER_KM2 = 0.45
 
 
 async def run_simulation(
@@ -40,14 +56,26 @@ async def run_simulation(
 
     category = params.get("category", "Hazard/Other")
     affected_radius_km = float(params.get("radius_km", 5.0))
-    # affected population = fraction of NCR population by area (rough)
-    affected_pop = int(NCR_POPULATION * (affected_radius_km / 50.0) ** 2 * 0.05)
+    # intensity 0..100 scales the radius: a weak event touches a smaller area.
+    intensity = max(0.0, min(100.0, float(params.get("intensity", 60))))
+    effective_radius_km = affected_radius_km * (0.4 + 0.6 * intensity / 100.0)
+
+    affected_area_km2 = math.pi * effective_radius_km**2
+    # affected population = density × area, capped by the NCR population.
+    affected_pop = int(min(NCR_POPULATION, affected_area_km2 * DENSITY_PER_KM2))
+    infra_count = max(0, int(affected_area_km2 * INFRA_PER_KM2))
+
     dmg_factor, cost_per = CATEGORY_FACTORS.get(category, (0.5, 40000))
     estimated_damage = int(affected_pop * cost_per * dmg_factor)
+
     summary = {
         "scenario": scenario,
         "category": category,
+        "radius_km": round(effective_radius_km, 2),
+        "intensity": round(intensity),
+        "affected_area_km2": round(affected_area_km2, 2),
         "affected_population_estimate": affected_pop,
+        "key_infrastructure_estimate": infra_count,
         "damage_estimate_inr": estimated_damage,
         "cost_per_affected_person_inr": cost_per,
         "damage_factor": dmg_factor,

@@ -47,7 +47,7 @@ export function AlertPrefForm() {
         <select
           value={region}
           onChange={(e) => setRegion(e.target.value)}
-          className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-[10px] focus:border-[var(--primary)] focus:outline-none"
+          className="min-h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-[10px] focus:border-[var(--primary)] focus:outline-none"
         >
           <option value="">All regions</option>
           {CATEGORIES.map((c) => (
@@ -59,7 +59,7 @@ export function AlertPrefForm() {
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-[10px] focus:border-[var(--primary)] focus:outline-none"
+          className="min-h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-[10px] focus:border-[var(--primary)] focus:outline-none"
         >
           <option value="">All categories</option>
           {SEVERITIES.map((s) => (
@@ -74,7 +74,7 @@ export function AlertPrefForm() {
               type="checkbox"
               checked={enabled}
               onChange={(e) => setEnabled(e.target.checked)}
-              className="h-3 w-3 accent-[var(--primary)]"
+              className="h-4 w-4 accent-[var(--primary)]"
             />
             Enabled
           </label>

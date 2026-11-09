@@ -116,6 +116,49 @@ class LlmBackend:
     def name(self) -> str:
         return f"llm:{self.model}"
 
+    async def chat(
+        self,
+        *,
+        text: str,
+        system: str | None = None,
+        language: str = "en-IN",
+    ) -> str:
+        """Plain chat completion against an OpenAI-compatible endpoint.
+
+        Used by the assistant. Raises `LlmBackendError` on any failure so
+        the multi-provider chain can move on to the next provider.
+        """
+        payload = {
+            "model": self.model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": system
+                    or (
+                        "You are ASTRA's emergency-response assistant for "
+                        f"Delhi NCR. Reply in {language}. Be concise and "
+                        "operational. If you do not know, say so plainly."
+                    ),
+                },
+                {"role": "user", "content": text},
+            ],
+            "temperature": 0.3,
+        }
+        try:
+            resp = await self._client.post(
+                f"{self.base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                json=payload,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            content = data["choices"][0]["message"]["content"]
+        except Exception as exc:
+            raise LlmBackendError(f"chat call failed: {exc}") from exc
+        if not content:
+            raise LlmBackendError("chat call returned an empty reply")
+        return content
+
     async def assess(
         self,
         *,
@@ -286,9 +329,35 @@ class MultiLlmBackend:
         for p in self.providers:
             try:
                 return await p.assess(
-                    title=title, description=description, region=region,
+                    title=title,
+                    description=description,
+                    region=region,
                     reporter_email=reporter_email,
                 )
+            except Exception as exc:
+                last_exc = exc
+                logger.warning("provider %s failed: %s; trying next", p.name, exc)
+        raise LlmBackendError("all providers failed: %s" % last_exc)
+
+    async def chat(
+        self,
+        *,
+        text: str,
+        system: str | None = None,
+        language: str = "en-IN",
+    ) -> tuple[str, str]:
+        """Try each provider in order; return `(reply, provider_name)`.
+
+        The provider name is returned so the UI can tell the user WHICH
+        model answered. A screen that says "AI Assistant" without saying
+        whether Groq, OpenRouter, NVIDIA or the deterministic rules stub
+        actually replied is claiming more than the system did.
+        """
+        last_exc = None
+        for p in self.providers:
+            try:
+                reply = await p.chat(text=text, system=system, language=language)
+                return reply, p.name
             except Exception as exc:
                 last_exc = exc
                 logger.warning("provider %s failed: %s; trying next", p.name, exc)
@@ -298,25 +367,41 @@ class MultiLlmBackend:
 def build_multi_llm_backend():
     providers = []
     if settings.groq_api_key:
-        providers.append(LlmBackend(
-            api_key=settings.groq_api_key, model=settings.groq_model,
-            base_url=settings.groq_base_url, timeout_seconds=settings.llm_timeout_seconds,
-        ))
+        providers.append(
+            LlmBackend(
+                api_key=settings.groq_api_key,
+                model=settings.groq_model,
+                base_url=settings.groq_base_url,
+                timeout_seconds=settings.llm_timeout_seconds,
+            )
+        )
     if settings.openrouter_api_key:
-        providers.append(LlmBackend(
-            api_key=settings.openrouter_api_key, model=settings.openrouter_model,
-            base_url=settings.openrouter_base_url, timeout_seconds=settings.llm_timeout_seconds,
-        ))
+        providers.append(
+            LlmBackend(
+                api_key=settings.openrouter_api_key,
+                model=settings.openrouter_model,
+                base_url=settings.openrouter_base_url,
+                timeout_seconds=settings.llm_timeout_seconds,
+            )
+        )
     if settings.nvidia_api_key:
-        providers.append(LlmBackend(
-            api_key=settings.nvidia_api_key, model=settings.nvidia_model,
-            base_url=settings.nvidia_base_url, timeout_seconds=settings.llm_timeout_seconds,
-        ))
+        providers.append(
+            LlmBackend(
+                api_key=settings.nvidia_api_key,
+                model=settings.nvidia_model,
+                base_url=settings.nvidia_base_url,
+                timeout_seconds=settings.llm_timeout_seconds,
+            )
+        )
     if not providers and settings.llm_api_key:
-        providers.append(LlmBackend(
-            api_key=settings.llm_api_key, model=settings.llm_model,
-            base_url=settings.llm_base_url, timeout_seconds=settings.llm_timeout_seconds,
-        ))
+        providers.append(
+            LlmBackend(
+                api_key=settings.llm_api_key,
+                model=settings.llm_model,
+                base_url=settings.llm_base_url,
+                timeout_seconds=settings.llm_timeout_seconds,
+            )
+        )
     if not providers:
         return None
     return MultiLlmBackend(providers)

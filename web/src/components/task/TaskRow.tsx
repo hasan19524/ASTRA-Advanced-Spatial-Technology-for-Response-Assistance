@@ -38,7 +38,7 @@ export function TaskRow({
     [task.id, onPatch],
   );
 
-  const assigneeNames = (task.assignee_names ?? []).join(", ") || "—";
+  const assigneeNames = (task.assignee_names ?? []).join(", ") || "Unassigned";
 
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">

@@ -29,6 +29,12 @@ Send = Callable[[Message], Awaitable[None]]
 MUTATING_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 # never audited even when mutating (framework noise)
 SKIP_PREFIXES = ("/health", "/docs", "/redoc", "/openapi.json")
+# Token refresh is an automatic, machine-initiated session keep-alive — the
+# SPA performs it silently on every load. Auditing it produced hundreds of
+# anonymous, actor-less rows that buried the real user actions (and grew the
+# table on every page view). Login / register / logout stay audited: those
+# are the security-relevant authentication events.
+SKIP_SUFFIXES = ("/auth/refresh",)
 
 # path suffix -> stable action name (nice to filter/group in the audit view)
 _ACTIONS = (
@@ -139,6 +145,7 @@ class AuditMiddleware:
             scope.get("type") != "http"
             or method not in MUTATING_METHODS
             or path.startswith(SKIP_PREFIXES)
+            or path.endswith(SKIP_SUFFIXES)
         ):
             await self.app(scope, receive, send)
             return

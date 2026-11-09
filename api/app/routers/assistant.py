@@ -78,5 +78,7 @@ async def chat(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    reply = await svc.chat(db, conv_id, payload.text, payload.language)
-    return {"reply": reply}
+    reply, provider = await svc.chat(db, conv_id, payload.text, payload.language)
+    # The provider label is part of the contract: the UI must be able to
+    # say WHICH engine answered (and when it was the rules stub).
+    return {"reply": reply, "provider": provider}

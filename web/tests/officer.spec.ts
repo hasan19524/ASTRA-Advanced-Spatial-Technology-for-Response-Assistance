@@ -10,12 +10,12 @@ test.describe("officer trust arc", () => {
     await page.waitForURL("**/dashboard", { timeout: 15000 });
 
     // ---- Verification queue -> investigate first incident ----
+    // "Investigate" is a LINK (an anchor styled as a button), not a
+    // <button> nested inside one — see components/ui/LinkButton.tsx.
     await page.goto(`${BASE}/verification`, { waitUntil: "networkidle" });
-    await page
-      .locator("button:has-text('Investigate')")
-      .first()
-      .waitFor({ state: "visible", timeout: 15000 });
-    await page.locator("button:has-text('Investigate')").first().click();
+    const investigate = page.getByRole("link", { name: "Investigate" }).first();
+    await investigate.waitFor({ state: "visible", timeout: 15000 });
+    await investigate.click();
     await page.waitForURL(/\/incidents\//, { timeout: 15000 });
     // ---- Verdict: REJECT ----
     await page.locator("button:has-text('Mark Rejected')").waitFor({ state: "visible", timeout: 10000 });

@@ -50,6 +50,27 @@ NCR_REGIONS: frozenset[str] = frozenset(
 NCR_CENTER_LAT = 28.61
 NCR_CENTER_LON = 77.21
 
+# AD-14 — the 7 response departments of Delhi NCR. This is the ONE list:
+# the seed, the task API and the organisation directory all use these exact
+# strings.
+#
+# Why it must be canonical: `users.department` and `response_tasks.department`
+# are plain strings, so a typo ("Fire", "fire & rescue") silently creates a
+# SECOND department. The directory rollup then shows a team with zero people
+# next to a team with zero tasks, and nobody notices. The API rejects any
+# department outside this list; the frontend mirrors it in
+# web/src/lib/constants.ts.
+DEPARTMENTS: tuple[str, ...] = (
+    "Police",
+    "Fire & Rescue",
+    "Medical/EMS",
+    "Transport & Roads",
+    "Disaster Management",
+    "Electricity/Utilities",
+    "Water & Drainage",
+)
+DEPARTMENT_SET: frozenset[str] = frozenset(DEPARTMENTS)
+
 # AD-8 — evidence photos live in `api/uploads/`, served back statically.
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5 MB
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}

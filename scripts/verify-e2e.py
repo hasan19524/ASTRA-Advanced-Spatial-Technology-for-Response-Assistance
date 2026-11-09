@@ -1,6 +1,16 @@
 import httpx, sys, time
+
 TS = str(int(time.time()))
-REGIONS = ["South Delhi", "North Delhi", "East Delhi", "West Delhi", "Central Delhi", "Gurugram", "Noida", "Faridabad"]
+REGIONS = [
+    "South Delhi",
+    "North Delhi",
+    "East Delhi",
+    "West Delhi",
+    "Central Delhi",
+    "Gurugram",
+    "Noida",
+    "Faridabad",
+]
 REG = REGIONS[int(time.time()) % len(REGIONS)]
 
 BASE = "http://localhost:8000"
@@ -51,7 +61,7 @@ check("incident detail", r.status_code == 200)
 r = httpx.post(
     f"{BASE}/api/v1/incidents/{inc_id}/tasks",
     headers=h_a,
-    json={"title": "Respond", "department": "Fire", "assignee_ids": []},
+    json={"title": "Respond", "department": "Fire & Rescue", "assignee_ids": []},
 )
 check("task create", r.status_code == 201, r.status_code)
 task_id = r.json()["id"] if r.status_code == 201 else None
@@ -89,7 +99,7 @@ r2 = httpx.post(
     data={
         "title": f"Waterlogging on main road {TS}",
         "description": f"Street flooded after drain overflow {TS}",
-        "category": "Fire",
+        "category": "Flood/Waterlogging",
         "region": REG,
     },
 )
@@ -97,7 +107,7 @@ inc2 = r2.json()["id"]
 httpx.post(
     f"{BASE}/api/v1/incidents/{inc2}/tasks",
     headers=h_a,
-    json={"title": "T2", "department": "Fire"},
+    json={"title": "T2", "department": "Fire & Rescue"},
 )
 r = httpx.post(f"{BASE}/api/v1/incidents/{inc2}/close", headers=h_a, json={})
 check("close with open task -> 409", r.status_code == 409, r.status_code)

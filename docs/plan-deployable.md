@@ -28,10 +28,38 @@ worklog · **open** = still to do · **blocked** = waiting on a user-supplied ke
   the demo world, starts the API and runs the Playwright specs.
 - `render.yaml` deploys the API; Vercel deploys the frontend.
 
-### 6.5 Mobile responsive polish — **open**
+### 6.5 Mobile responsive polish — **done**
 - Sidebar hamburger drawer: **done**.
-- Cards, tables, forms, topbar collapse, map full-width on mobile: **open**
-  (audit report below lists the per-page gaps).
+- Cards, tables, forms, topbar collapse, map full-width on mobile: **done**.
+- Measured by `web/scripts/responsive-audit.mjs` at 375 / 768 / 1440 px:
+  no horizontal overflow, and no sub-40 px tap target on a coarse pointer.
+  The eight `<Link><Button>` nestings were removed (invalid HTML + a 16 px
+  invisible hit area); the new `web/src/components/ui/LinkButton.tsx`
+  renders one anchor with the button's visual language.
+- Full findings: **`docs/ui-ux-audit.md`**.
+
+### 6.9 Real map (Leaflet + OpenStreetMap) — **done**
+- `web/src/components/map/LiveMap.tsx` replaces the old `MapPlaceholder`
+  (coloured dots on a CSS gradient that could not pan, zoom, geocode or
+  route). Real OSM raster tiles, real incident pins coloured by
+  verification status, the real Dijkstra polyline, the real closure layer,
+  browser geolocation.
+- `GET /api/v1/route` now returns `path_coords` (AD-31) and
+  `GET /api/v1/route/nearest` snaps an arbitrary point to the closest
+  routable junction (AD-32).
+- CARTO's tile CDN now returns "API KEY REQUIRED" placeholders, so the
+  basemap uses the key-free OSM tile server and the dark theme is a CSS
+  filter over those same tiles (AD-30).
+
+### 6.10 No fixture data on any production path — **done**
+- `/reports`, `/simulation`, `/departments`, `/teams` and the dashboard
+  activity feed were all rendering hard-coded numbers. They now read
+  counted data from the API. `docs/ui-ux-audit.md` §2.2 lists each one.
+
+### 6.11 Canonical department names — **done**
+- `app/core/constants.DEPARTMENTS` is the one list; the task API returns
+  **422** for anything outside it (AD-34). Before this, `"Fire"` and
+  `"Fire & Rescue"` were two separate departments.
 
 ### 6.6 Free-tier deployability (added after the hosting plan) — **done**
 Full plan with provider limits and trade-offs: **`docs/deployment-free-tier.md`**.
@@ -66,10 +94,19 @@ Full plan with provider limits and trade-offs: **`docs/deployment-free-tier.md`*
 - Classify the uploaded photo (fire/flood/crash/medical), auto-set the
   category, store the confidence on the assessment row.
 
-## Phase 8 — Product decisions needed (future)
-- Multi-tenant architecture
-- Push notifications (FCM/APNs)
-- Offline PWA support
-- DPDP Act compliance
-- Historical analytics dashboards
-- Predictive dispatch (ML)
+## Phase 8 — Platform hardening and scale
+
+The full plan (multi-tenant isolation, Web Push, PWA/offline, DPDP Act
+2023 compliance, analytics + CSV export, predictive dispatch, performance
+and observability work) is in **`docs/plan-remaining.md` § Phase 8**.
+
+Two items are pulled forward in priority because they are the ones the
+product's own purpose depends on:
+
+1. **Offline incident reporting (8.3).** A citizen in a flooded street has
+   no signal. A report that fails silently in that moment is the one
+   failure the product cannot have.
+2. **Multi-tenant isolation (8.1).** The current scope model is
+   *role*-based; a district commissioner must not see another district's
+   incidents. It is a schema change, so it is cheapest before real traffic
+   exists.

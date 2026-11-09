@@ -70,8 +70,7 @@ def _reset_tables() -> None:
         await engine.dispose()
 
     asyncio.run(go())
-    database.get_engine.cache_clear()
-    database.get_session_factory.cache_clear()
+    database.reset_clients()
 
 
 _ensure_database()
@@ -84,9 +83,7 @@ async def _async_reset_tables() -> None:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     await engine.dispose()
-    database.get_engine.cache_clear()
-    database.get_session_factory.cache_clear()
-    database.get_redis.cache_clear()
+    database.reset_clients()
 
 
 @pytest.fixture(autouse=True)
@@ -103,9 +100,7 @@ def _reset_db_per_test():
 @pytest_asyncio.fixture(autouse=True)
 async def _engine_per_test():
     """Fresh engine/pool per test, bound to that test's event loop."""
-    database.get_engine.cache_clear()
-    database.get_session_factory.cache_clear()
-    database.get_redis.cache_clear()
+    database.reset_clients()
     # The auth rate limiter counts attempts in Redis. Those counters must not
     # leak between tests, or a long suite trips its own 429s (the whole suite
     # runs from 127.0.0.1). Production keeps the counters; tests start clean.
@@ -116,10 +111,13 @@ async def _engine_per_test():
     except Exception:
         pass
     yield
-    if database.get_engine.cache_info().currsize:
-        await database.get_engine().dispose()
-    database.get_engine.cache_clear()
-    database.get_session_factory.cache_clear()
+    # Close this loop's engine + Redis client, then drop every cached
+    # client. The clients are cached per event loop (see
+    # app/core/database.py): the app under test runs on an anyio portal
+    # loop while this fixture runs on the pytest-asyncio loop, so the two
+    # must never share (or close) each other's connections.
+    await database.dispose()
+    database.reset_clients()
 
 
 @pytest_asyncio.fixture
