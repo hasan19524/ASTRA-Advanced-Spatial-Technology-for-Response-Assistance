@@ -23,6 +23,7 @@ from app.core.constants import (
     MAX_UPLOAD_BYTES,
     NCR_CENTER_LAT,
     NCR_CENTER_LON,
+    NCR_REGIONS,
 )
 from app.core.permissions import permissions_for
 from app.models import (
@@ -145,6 +146,7 @@ async def create_incident(
     longitude: float | None,
     location_text: str | None,
     media_path: str | None,
+    report_source: str | None = None,
     backend: AssessmentBackend | None = None,
 ) -> tuple[Incident, bool]:
     """One citizen submission → one incident + its first `incident_reports`
@@ -159,6 +161,14 @@ async def create_incident(
         raise HTTPException(status_code=422, detail="title is required")
     if category not in CATEGORIES:
         raise HTTPException(status_code=422, detail=f"Unknown category: {category}")
+    if region is not None and region.strip() and region not in NCR_REGIONS:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Unknown region '{region}'. "
+                f"Valid Delhi NCR regions: {', '.join(sorted(NCR_REGIONS))}"
+            ),
+        )
 
     parent = await find_duplicate_parent(
         db, title=title, description=description, region=region, category=category
@@ -170,7 +180,13 @@ async def create_incident(
                 reporter_id=user.id,
                 content=description or title,
                 media_path=media_path,
-                source="PHOTO" if media_path else "TEXT",
+                # An evidence photo is the report's media; a voice transcript
+                # marks the report's ORIGIN (audit G5). Photo wins if both.
+                source=(
+                    "PHOTO"
+                    if media_path
+                    else ("VOICE" if report_source == "VOICE" else "TEXT")
+                ),
             )
         )
         await db.commit()  # §D: retained under the parent, no duplicate row
@@ -196,7 +212,11 @@ async def create_incident(
             reporter_id=user.id,
             content=description or title,
             media_path=media_path,
-            source="PHOTO" if media_path else "TEXT",
+            source=(
+                "PHOTO"
+                if media_path
+                else ("VOICE" if report_source == "VOICE" else "TEXT")
+            ),
         )
     )
     # task 4: pluggable assessment (AD-24) — the stub stays byte-identical;

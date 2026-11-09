@@ -13,7 +13,6 @@ import type { TaskOut, TaskPatchIn, TaskUpdateIn } from "@/api/openapi-types";
 export type TaskRowProps = {
   task: TaskOut;
   canUpdate: boolean;
-  canAssign: boolean;
   onPatch: (id: string, payload: TaskPatchIn) => void;
   onUpdate: (id: string, payload: TaskUpdateIn) => void;
 };
@@ -21,7 +20,6 @@ export type TaskRowProps = {
 export function TaskRow({
   task,
   canUpdate,
-  canAssign,
   onPatch,
   onUpdate,
 }: TaskRowProps) {
@@ -83,11 +81,6 @@ export function TaskRow({
             {assigneeNames}
           </p>
         </div>
-        {canAssign && (
-          <Button variant="secondary" onClick={() => {}} title="Assign via create form">
-            Assign
-          </Button>
-        )}
       </div>
 
       <div className="flex items-center justify-between gap-2 mt-2">

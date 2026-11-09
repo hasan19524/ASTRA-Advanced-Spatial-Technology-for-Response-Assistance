@@ -5,6 +5,7 @@
 import type { ReactNode } from "react";
 
 export function Card({
+  id,
   title,
   subtitle,
   action,
@@ -12,6 +13,7 @@ export function Card({
   className = "",
   padding = true,
 }: {
+  id?: string;
   title?: ReactNode;
   subtitle?: ReactNode;
   action?: ReactNode;
@@ -21,6 +23,7 @@ export function Card({
 }) {
   return (
     <section
+      id={id}
       className={`rounded-xl border border-[var(--border)] bg-[var(--surface)] ${className}`}
     >
       {(title || action) && (

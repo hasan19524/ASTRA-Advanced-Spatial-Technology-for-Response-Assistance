@@ -14,7 +14,7 @@
 |---|---|
 | Frontend | Next.js · React · TypeScript · Tailwind CSS · Zustand |
 | Backend | Python · FastAPI · PostgreSQL · Redis · WebSockets |
-| AI / Voice | Gnani models — Prisma (STT) · Timbre (TTS) · Evon (LLM), *pending API verification* |
+| AI / Voice | Gnani Prisma STT (integrated, `POST /voice/stt`) · Gnani Timbre TTS (server-side, no UI consumer yet) · Evon LLM (not integrated) |
 | Maps | Leaflet + OpenStreetMap · Dijkstra route finding |
 | Security | JWT auth · backend-enforced RBAC · audit logging |
 
@@ -96,8 +96,10 @@ query time, not by mutating another axis. Seed ships 2 RESTRICTED incidents this
 This makes vision.md's promise enforceable instead of aspirational: *citizens see public-safe
 information; sensitive operational detail is restricted.*
 
-**Deferred:** the Gnani API-key spike was postponed; voice integration still targets Day 7. It may
-change the *implementation* behind `GnaniClient` / `AssessmentBackend` — never these decisions.
+Gnani voice integration is live: STT (`POST /voice/stt`) is wired into the
+report form and transcripts are persisted as incident content; TTS
+(`POST /voice/tts`) is implemented server-side but has no UI consumer yet.
+Evon LLM remains unintegrated.
 
 ---
 

@@ -63,6 +63,10 @@ export default function ReportPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // The actual MIME type the browser recorded — used for the filename and
+  // content type sent to the STT endpoint (Gnani supports OGG/WAV/MP3/...;
+  // WebM is not documented and is sent as video/webm by default).
+  const recordedMimeRef = useRef<string>("audio/ogg");
 
   const setFallback = useCallback(() => {
     setLat(NCR_LAT);
@@ -125,7 +129,8 @@ export default function ReportPage() {
 
   const sendToSTT = useCallback(async (blob: Blob) => {
     const form = new FormData();
-    form.append("audio", blob, "recording.webm");
+    const ext = recordedMimeRef.current === "audio/ogg" ? "ogg" : "webm";
+    form.append("audio", blob, `recording.${ext}`);
     form.append("language_code", voiceLanguage.selected);
     let lastError: unknown = null;
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -157,7 +162,11 @@ export default function ReportPage() {
     setVoiceTranscript(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mime = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/ogg";
+      // Prefer OGG — Gnani documents OGG/WAV/MP3/FLAC/AAC/M4A support, not
+      // WebM. Fall back to WebM only if the browser cannot do OGG.
+      const mime =
+        MediaRecorder.isTypeSupported("audio/ogg") ? "audio/ogg" : "audio/webm";
+      recordedMimeRef.current = mime;
       const rec = new MediaRecorder(stream, { mimeType: mime });
       chunksRef.current = [];
       rec.ondataavailable = (e) => {
@@ -229,6 +238,8 @@ export default function ReportPage() {
     if (lat != null) form.append("latitude", String(lat));
     if (lng != null) form.append("longitude", String(lng));
     if (locationText.trim()) form.append("location_text", locationText.trim());
+    // The description came from Gnani STT — mark the report's origin (audit G5).
+    if (voiceTranscript) form.append("source", "VOICE");
     if (photo) form.append("photo", photo);
 
     setSubmitting(true);
@@ -460,6 +471,9 @@ export default function ReportPage() {
             <div className="rounded-lg border border-[var(--border)]/40 bg-[var(--primary-soft)]/30 p-2 text-[10px]">
               <span className="text-[var(--primary)] font-bold text-[10px]">Transcript:</span>{" "}
               {voiceTranscript}
+              <p className="mt-1 text-[9px] text-[var(--subtle)]">
+                Speech-to-text by Gnani AI Prisma — editable above before you submit.
+              </p>
             </div>
           )}
         </div>

@@ -127,3 +127,56 @@ async def test_chat_without_any_provider_configured(client, monkeypatch):
     )
     assert r.status_code == 200, r.text
     assert r.json()["provider"] == "rules_stub"
+
+
+# ---------------------------------------------------------------- assistant ownership (P0 fix C4)
+async def test_user_cannot_read_another_users_messages(client, monkeypatch):
+    """User B must not read User A's conversation messages (404, not 200)."""
+    from app.services import assistant_service as svc
+
+    monkeypatch.setattr(svc, "build_multi_llm_backend", lambda: None)
+
+    user_a = await _user()
+    user_b = await _user()
+    token_a = await _login(client, user_a)
+    token_b = await _login(client, user_b)
+
+    conv = await client.post(
+        "/api/v1/assistant/conversations",
+        json={"title": None, "language": "en-IN"},
+        headers={"Authorization": f"Bearer {token_a}"},
+    )
+    conv_id = conv.json()["id"]
+
+    # User A writes a message
+    r = await client.post(
+        f"/api/v1/assistant/conversations/{conv_id}/chat",
+        json={"text": "private message", "language": "en-IN"},
+        headers={"Authorization": f"Bearer {token_a}"},
+    )
+    assert r.status_code == 200
+
+    # User B tries to read User A's messages -> 404
+    r = await client.get(
+        f"/api/v1/assistant/conversations/{conv_id}/messages",
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+    assert r.status_code == 404, f"expected 404, got {r.status_code}: {r.text}"
+
+    # User B tries to inject into User A's conversation -> 404
+    r = await client.post(
+        f"/api/v1/assistant/conversations/{conv_id}/chat",
+        json={"text": "injected message", "language": "en-IN"},
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+    assert r.status_code == 404, f"expected 404, got {r.status_code}: {r.text}"
+
+    # User A can still read their own messages
+    r = await client.get(
+        f"/api/v1/assistant/conversations/{conv_id}/messages",
+        headers={"Authorization": f"Bearer {token_a}"},
+    )
+    assert r.status_code == 200
+    messages = r.json()
+    assert any(m["content"] == "private message" for m in messages)
+    assert not any(m["content"] == "injected message" for m in messages)

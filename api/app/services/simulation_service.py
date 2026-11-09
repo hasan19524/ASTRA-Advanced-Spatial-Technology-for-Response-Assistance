@@ -89,8 +89,14 @@ async def run_simulation(
     return run
 
 
-async def get_run(db: AsyncSession, run_id: str) -> SimRun | None:
-    return await db.get(SimRun, run_id)
+async def get_run(db: AsyncSession, run_id: str, user: User) -> SimRun | None:
+    from sqlalchemy import select
+
+    stmt = select(SimRun).where(SimRun.id == run_id)
+    # Non-admins can only read their own PUBLIC runs (same scoping as list_runs).
+    if user.role != "CENTRAL_ADMIN":
+        stmt = stmt.where(SimRun.mode == "PUBLIC")
+    return await db.scalar(stmt)
 
 
 async def list_runs(db: AsyncSession, user: User, limit: int = 20) -> list[SimRun]:

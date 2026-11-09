@@ -320,7 +320,6 @@ export default function TeamsPage() {
                 <TaskRow
                   task={selectedTask}
                   canUpdate={canUpdate}
-                  canAssign={false}
                   onPatch={async (id, payload) => {
                     const updated = await patch(id, payload, token);
                     if (updated) {

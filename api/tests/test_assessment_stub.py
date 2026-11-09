@@ -54,7 +54,9 @@ def _auth(tokens: dict) -> dict:
     return {"Authorization": f"Bearer {tokens['access_token']}"}
 
 
-async def test_rule1_out_of_ncr_region_is_definitely_false(client):
+async def test_rule1_out_of_ncr_region_is_rejected_422(client):
+    """Rule 1: out-of-NCR region is rejected at the API layer with 422 —
+    it must never be silently classified as DEFINITELY_FALSE and hidden."""
     tokens = await _register(client, "citizen")
     r = await client.post(
         "/api/v1/incidents",
@@ -66,31 +68,13 @@ async def test_rule1_out_of_ncr_region_is_definitely_false(client):
         },
         headers=_auth(tokens),
     )
-    assert r.status_code == 201, r.text
-    body = r.json()
-    assert body["assessment_status"] == "DEFINITELY_FALSE"
-    assert body["visibility"] == "HIDDEN"  # task 3 flipped it
-    assert body["lifecycle"] == "CLOSED"
+    assert r.status_code == 422, r.text
+    assert "Mumbai" in r.json()["detail"]
+    assert "Valid Delhi NCR regions" in r.json()["detail"]
 
-    # gone from the citizen's list, 404 by id, still auditable via officer
+    # no incident was created — nothing in the list
     listed = await client.get("/api/v1/incidents?limit=100", headers=_auth(tokens))
-    assert body["id"] not in {i["id"] for i in listed.json()["items"]}
-    assert (
-        await client.get(f"/api/v1/incidents/{body['id']}", headers=_auth(tokens))
-    ).status_code == 404
-
-    officer = await _make_user(
-        f"officer+{uuid.uuid4().hex[:8]}@test.example", "VERIFICATION_OFFICER"
-    )
-    off_tokens = await _login(client, officer.email)
-    detail = await client.get(
-        f"/api/v1/incidents/{body['id']}", headers=_auth(off_tokens)
-    )
-    assert detail.status_code == 200
-    assessment = detail.json()["assessments"][0]
-    assert assessment["backend"] == "rules_stub"
-    assert assessment["outcome"] == "DEFINITELY_FALSE"
-    assert "outside the Delhi-NCR" in assessment["reason"]
+    assert listed.json()["items"] == []
 
 
 async def test_rule2_blacklist_keyword_is_definitely_false(client):

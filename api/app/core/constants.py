@@ -34,6 +34,8 @@ NCR_REGIONS: frozenset[str] = frozenset(
         "South Delhi",
         "Old Delhi",
         "East Delhi",
+        "North Delhi",
+        "West Delhi",
         "Rohini",
         "Dwarka",
         "Yamuna Basin",

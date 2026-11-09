@@ -23,7 +23,16 @@ async def speech_to_text(
 ):
     data = await audio.read()
     try:
-        transcript = await svc.stt(data, audio.filename or "audio.wav", language_code)
+        transcript = await svc.stt(
+            data,
+            audio.filename or "audio.wav",
+            language_code,
+            audio.content_type,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        )
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
     return {"transcript": transcript, "language_code": language_code}

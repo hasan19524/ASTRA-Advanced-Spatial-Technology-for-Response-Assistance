@@ -38,14 +38,17 @@ async def fetch_weather(lat: float, lon: float) -> dict:
     }
 
 
-# Delhi NCR grid points for weather monitoring
+# Delhi NCR grid points for weather monitoring.
+# Every label must be a member of NCR_REGIONS (api/app/core/constants.py) so
+# that auto-created weather incidents are not silently classified as
+# out-of-coverage and hidden (audit finding C3).
 DELHI_POINTS = [
-    (28.6139, 77.2090, "New Delhi"),
+    (28.6139, 77.2090, "Central Delhi"),  # was "New Delhi" — not in NCR_REGIONS
     (28.7041, 77.1025, "North Delhi"),
-    (28.5355, 77.3910, "East Delhi"),
+    (28.6354, 77.3166, "East Delhi"),  # corrected: was a duplicate of Noida
     (28.6500, 77.1500, "West Delhi"),
     (28.4595, 77.0266, "Gurugram"),
-    (28.5355, 77.3910, "Noida"),
+    (28.5700, 77.3200, "Noida"),  # corrected: was a duplicate of East Delhi
 ]
 
 

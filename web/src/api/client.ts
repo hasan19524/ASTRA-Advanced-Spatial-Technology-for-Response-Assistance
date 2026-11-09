@@ -19,7 +19,31 @@ export class HttpError extends Error {
     public status: number,
     public body: ApiError,
   ) {
-    super(body.detail || `HTTP ${status}`);
+    const detail = body.detail as unknown;
+    let message: string;
+    if (detail === undefined || detail === null) {
+      message = `HTTP ${status}`;
+    } else if (typeof detail === "string") {
+      message = detail;
+    } else if (Array.isArray(detail)) {
+      // FastAPI 422 validation errors are an array of {loc, msg, type}.
+      message = detail
+        .map((e: unknown) => {
+          if (typeof e === "string") return e;
+          if (e && typeof e === "object") {
+            const obj = e as Record<string, unknown>;
+            const loc = Array.isArray(obj.loc) ? obj.loc.join(".") : String(obj.loc ?? "");
+            return `${loc}: ${obj.msg ?? obj}`;
+          }
+          return String(e);
+        })
+        .join("; ");
+    } else if (typeof detail === "object") {
+      message = JSON.stringify(detail);
+    } else {
+      message = String(detail);
+    }
+    super(message);
   }
 }
 

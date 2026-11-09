@@ -6,6 +6,9 @@ import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from fastapi import HTTPException
+from sqlalchemy import select
+
 from app.models import AssistConversation, AssistMessage
 from app.services.assessment_backend import build_multi_llm_backend
 
@@ -79,8 +82,22 @@ async def list_conversations(
     return list(rows)
 
 
-async def get_messages(db: AsyncSession, conversation_id: str) -> list[AssistMessage]:
+async def get_messages(
+    db: AsyncSession, conversation_id: str, user_id: str
+) -> list[AssistMessage]:
+    """Return messages for a conversation, but only if it belongs to `user_id`."""
     from sqlalchemy import select
+
+    # Verify conversation ownership first — existence stays secret (404,
+    # not an empty list that leaks that the conversation exists).
+    conv = await db.scalar(
+        select(AssistConversation).where(
+            AssistConversation.id == conversation_id,
+            AssistConversation.user_id == user_id,
+        )
+    )
+    if conv is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
 
     rows = (
         await db.scalars(
@@ -93,15 +110,27 @@ async def get_messages(db: AsyncSession, conversation_id: str) -> list[AssistMes
 
 
 async def chat(
-    db: AsyncSession, conversation_id: str, user_text: str, language: str = "en-IN"
+    db: AsyncSession,
+    conversation_id: str,
+    user_id: str,
+    user_text: str,
+    language: str = "en-IN",
 ) -> tuple[str, str]:
     """Answer a chat message. Returns `(reply, provider_label)`.
 
-    The provider chain is Groq → OpenRouter → NVIDIA (PL-17). When every
-    provider fails the answer degrades to the deterministic `rules_stub`
-    — and the label says so, so the UI never presents a canned string as
-    if a language model had written it.
+    The conversation must belong to `user_id`; otherwise 404 (existence stays
+    secret, same pattern as incident reads).
     """
+    # Verify conversation ownership before touching any data.
+    conv = await db.scalar(
+        select(AssistConversation).where(
+            AssistConversation.id == conversation_id,
+            AssistConversation.user_id == user_id,
+        )
+    )
+    if conv is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
     # store user msg
     db.add(
         AssistMessage(conversation_id=conversation_id, role="user", content=user_text)

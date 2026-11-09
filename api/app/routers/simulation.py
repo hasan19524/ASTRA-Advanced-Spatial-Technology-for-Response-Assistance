@@ -58,7 +58,7 @@ async def get_run(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    run = await svc.get_run(db, run_id)
+    run = await svc.get_run(db, run_id, user)
     if run is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Run not found"

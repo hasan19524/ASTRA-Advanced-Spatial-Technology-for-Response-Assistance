@@ -6,14 +6,20 @@
  * degrading to a deterministic `rules_stub`. The screen states WHICH engine
  * answered under every reply — a chat bubble with no attribution would
  * let a canned string pass for a model's answer.
+ *
+ * Voice output: "Listen" calls the real Gnani Timbre TTS endpoint and plays
+ * the returned WAV. When Gnani is unreachable the error says so — the text
+ * answer above is always the full response (no fake audio).
  */
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { useAssistant } from "@/stores/assistant";
 import { useAuthSession } from "@/hooks/useAuth";
+import { request } from "@/api/client";
+import { API_URL } from "@/lib/constants";
 
 /** Starter questions that exercise the real backend paths. */
 const SUGGESTIONS = [
@@ -42,6 +48,70 @@ export default function AssistantPage() {
   const { token } = useAuthSession();
   const { messages, loading, error, send, clear, lastProvider } = useAssistant();
   const [input, setInput] = useState("");
+
+  // --- Gnani Timbre TTS — one audio at a time, honest error state ---
+  type TtsState = { msgId: string; status: "loading" | "playing" | "error"; err?: string };
+  const [tts, setTts] = useState<TtsState | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const urlRef = useRef<string | null>(null);
+
+  const stopAudio = () => {
+    audioRef.current?.pause();
+    audioRef.current = null;
+    if (urlRef.current) {
+      URL.revokeObjectURL(urlRef.current);
+      urlRef.current = null;
+    }
+  };
+
+  const listen = async (msgId: string, text: string) => {
+    if (tts?.msgId === msgId && tts.status === "playing") {
+      stopAudio();
+      setTts(null);
+      return;
+    }
+    stopAudio();
+    setTts({ msgId, status: "loading" });
+    try {
+      const res = await fetch(`${API_URL}/api/v1/voice/tts`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ text, language_code: "en-IN" }),
+      });
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        throw new Error(`Gnani TTS unavailable (HTTP ${res.status}). ${detail.slice(0, 120)}`);
+      }
+      const blob = await res.blob();
+      if (!blob.size || blob.size < 1000) {
+        throw new Error("Gnani TTS returned no audible audio.");
+      }
+      const url = URL.createObjectURL(blob);
+      urlRef.current = url;
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => {
+        stopAudio();
+        setTts(null);
+      };
+      audio.onerror = () => {
+        stopAudio();
+        setTts({ msgId, status: "error", err: "Audio playback failed." });
+      };
+      setTts({ msgId, status: "playing" });
+      await audio.play();
+    } catch (e) {
+      stopAudio();
+      setTts({
+        msgId,
+        status: "error",
+        err: e instanceof Error ? e.message : "Gnani TTS unavailable.",
+      });
+    }
+  };
 
   const handleSend = async (text?: string) => {
     const message = (text ?? input).trim();
@@ -89,6 +159,8 @@ export default function AssistantPage() {
             )}
             {messages.map((m) => {
               const label = providerLabel(m.provider);
+              const ttsState =
+                tts?.msgId === m.id ? tts : null;
               return (
                 <div
                   key={m.id}
@@ -109,6 +181,29 @@ export default function AssistantPage() {
                     )}
                   </div>
                   <p className="mt-1 whitespace-pre-wrap">{m.text}</p>
+                  {m.role === "assistant" && (
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void listen(m.id, m.text)}
+                        disabled={ttsState?.status === "loading"}
+                        className="min-h-8 rounded border border-[var(--border-strong)] bg-[var(--background)] px-2 py-1 text-[10px] font-semibold text-[var(--muted)] transition-colors hover:text-[var(--foreground)] disabled:opacity-40"
+                        title="Read this answer aloud with Gnani Timbre TTS"
+                      >
+                        {ttsState?.status === "loading"
+                          ? "Generating audio…"
+                          : ttsState?.status === "playing"
+                            ? "■ Stop"
+                            : "🔊 Listen (Gnani Timbre)"}
+                      </button>
+                      {ttsState?.status === "error" && (
+                        <span className="text-[9px] text-[var(--danger)]">
+                          {ttsState.err} — the text answer above is the full
+                          response.
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

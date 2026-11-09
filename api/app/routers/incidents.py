@@ -44,6 +44,10 @@ async def submit_report(
     latitude: float | None = Form(None),
     longitude: float | None = Form(None),
     location_text: str | None = Form(None),
+    # VOICE when the description came from Gnani STT (audit G5: voice reports
+    # were indistinguishable from typed ones). An evidence photo still wins —
+    # the media is the photo.
+    source: str | None = Form(None),
     photo: UploadFile | None = File(None),
     user: User = Depends(require_permission("report.create")),
     db: AsyncSession = Depends(get_db),
@@ -54,6 +58,11 @@ async def submit_report(
     pinning. `grouped: true` = the submission filed under a recent duplicate
     parent (task 6) and its axes are the parent's.
     """
+    if source is not None and source not in ("TEXT", "VOICE"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="source must be 'TEXT' or 'VOICE'",
+        )
     media_path = await svc.save_evidence(photo)
     incident, grouped = await svc.create_incident(
         db,
@@ -66,6 +75,7 @@ async def submit_report(
         longitude=longitude,
         location_text=location_text.strip() if location_text else None,
         media_path=media_path,
+        report_source=source,
     )
     # grouped submissions return the PARENT's axes with the grown report_count
     out = IncidentCreatedOut.model_validate(incident)

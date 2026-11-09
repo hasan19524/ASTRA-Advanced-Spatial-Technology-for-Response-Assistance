@@ -79,7 +79,6 @@ export function TaskList({
             key={t.id}
             task={t}
             canUpdate={canUpdate}
-            canAssign={canAssign}
             onPatch={onPatch}
             onUpdate={onUpdate}
           />

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="480" viewBox="0 0 480 480" role="img" aria-label="ASTRA logo">
+  <!-- ASTRA — Advanced Spatial Technology for Response Assistance -->
+  <defs>
+    <linearGradient id="astraCard" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#16213e"/>
+      <stop offset="1" stop-color="#0b1120"/>
+    </linearGradient>
+    <linearGradient id="astraPin" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#60a5fa"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+
+  <!-- rounded card: reads correctly on both light and dark GitHub themes -->
+  <rect x="24" y="24" width="432" height="432" rx="96" fill="url(#astraCard)"/>
+
+  <!-- spatial signal arcs (radar sweep over the NCR) -->
+  <g fill="none" stroke="#3b82f6" stroke-linecap="round">
+    <path d="M 240 268 m -118 0 a 118 118 0 0 1 236 0" stroke-opacity="0.16" stroke-width="10"/>
+    <path d="M 240 268 m -84 0 a 84 84 0 0 1 168 0"  stroke-opacity="0.30" stroke-width="10"/>
+    <path d="M 240 268 m -50 0 a 50 50 0 0 1 100 0"  stroke-opacity="0.55" stroke-width="10"/>
+  </g>
+
+  <!-- location pin -->
+  <g transform="translate(240 214)">
+    <path d="M 0 -76 C -36 -76 -62 -49 -62 -14 C -62 24 -22 58 0 78
+             C 22 58 62 24 62 -14 C 62 -49 36 -76 0 -76 Z"
+          fill="url(#astraPin)"/>
+    <circle cx="0" cy="-12" r="24" fill="#0b1120"/>
+    <circle cx="0" cy="-12" r="11" fill="#93c5fd"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="240" y="384" text-anchor="middle"
+        font-family="Segoe UI, Helvetica, Arial, sans-serif"
+        font-size="72" font-weight="700" letter-spacing="10"
+        fill="#e2e8f0">ASTRA</text>
+</svg>

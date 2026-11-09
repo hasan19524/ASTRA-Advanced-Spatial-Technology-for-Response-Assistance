@@ -317,3 +317,63 @@ async def test_report_submission_is_audited(client):
         row = await s.scalar(select(AuditLog).where(AuditLog.request_id == rid))
     assert row is not None and row.action == "incident.create"
     assert row.actor_id is not None and row.status_code == 201
+
+
+# ---------------------------------------------------------------- region validation (P0 fix C1)
+async def test_north_west_delhi_are_valid_regions(client):
+    """North Delhi and West Delhi were added to NCR_REGIONS — reports from
+    those regions must be accepted, not auto-classified as out-of-coverage."""
+    for region in ("North Delhi", "West Delhi"):
+        tokens = await _register(client, f"reporter-{region.replace(' ', '')}")
+        r = await client.post(
+            "/api/v1/incidents",
+            data=_report_fields(region=region, title=f"Smoke in {region}"),
+            headers=_auth(tokens),
+        )
+        assert r.status_code == 201, f"{region} should be accepted: {r.text}"
+        assert r.json()["region"] == region
+
+
+async def test_unknown_region_is_rejected_422(client):
+    """An unknown region must be rejected with 422 before any assessment runs
+    — it must never be silently classified as DEFINITELY_FALSE and hidden."""
+    tokens = await _register(client, "citizen-unknown-region")
+    r = await client.post(
+        "/api/v1/incidents",
+        data=_report_fields(region="Mumbai", title="Fire in Mumbai"),
+        headers=_auth(tokens),
+    )
+    assert r.status_code == 422, r.text
+    assert "Mumbai" in r.json()["detail"]
+    assert "Valid Delhi NCR regions" in r.json()["detail"]
+
+
+async def test_region_allows_empty_and_none(client):
+    """Region is optional — empty string and None must both be accepted."""
+    tokens = await _register(client, "citizen-no-region")
+    # No region field at all
+    fields = _report_fields()
+    del fields["region"]
+    r = await client.post("/api/v1/incidents", data=fields, headers=_auth(tokens))
+    assert r.status_code == 201, r.text
+    # Empty string region
+    r = await client.post(
+        "/api/v1/incidents",
+        data=_report_fields(region=""),
+        headers=_auth(tokens),
+    )
+    assert r.status_code == 201, r.text
+
+
+# ---------------------------------------------------------------- weather points (P0 fix C2/C3)
+async def test_weather_points_all_have_valid_ncr_regions():
+    """Every DELHI_POINTS label must be a member of NCR_REGIONS so weather
+    auto-incidents are not silently classified as out-of-coverage."""
+    from app.core.constants import NCR_REGIONS
+    from app.services.weather_service import DELHI_POINTS
+
+    for lat, lon, label in DELHI_POINTS:
+        assert label in NCR_REGIONS, f"{label} is not in NCR_REGIONS"
+    # No duplicate coordinates
+    coords = [(lat, lon) for lat, lon, _ in DELHI_POINTS]
+    assert len(coords) == len(set(coords)), "DELHI_POINTS has duplicate coordinates"

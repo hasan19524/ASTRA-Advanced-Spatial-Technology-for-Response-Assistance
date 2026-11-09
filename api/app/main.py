@@ -62,7 +62,7 @@ async def _alert_sweeper():
                 await weather_service.weather_ingestion_tick(wdb)
         except Exception:
             pass
-        await _asyncio.sleep(60)
+        await _asyncio.sleep(300)
 
 
 @asynccontextmanager

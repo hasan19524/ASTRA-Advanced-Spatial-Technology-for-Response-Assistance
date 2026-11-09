@@ -93,12 +93,20 @@ async def close_incident(
     return IncidentOut.model_validate(incident)
 
 
-@router.post("/{incident_id}/reopen", response_model=IncidentOut)
-async def reopen_incident(
+@router.post("/{incident_id}/reopen-closed", response_model=IncidentOut)
+async def reopen_closed_incident(
     incident_id: str = Path(...),
     user: User = Depends(require_permission("incident.close")),
     db: AsyncSession = Depends(get_db),
 ) -> IncidentOut:
+    """Reopen a CLOSED incident back to OPEN (lifecycle axis, I6).
+
+    NOTE: this used to live at POST /incidents/{id}/reopen, which is shadowed
+    by the verification router's identically-pathed reopen (REJECTED ->
+    UNVERIFIED) mounted earlier — the lifecycle reopen was unreachable.
+    Moved to /reopen-closed so both behaviours are reachable. The frontend
+    never called this endpoint, so the rename is non-breaking.
+    """
     incident = await isvc.get_visible_incident(db, user, incident_id)
     if incident is None:
         raise HTTPException(

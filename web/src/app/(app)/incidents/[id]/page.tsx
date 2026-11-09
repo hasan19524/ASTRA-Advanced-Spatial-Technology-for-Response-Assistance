@@ -7,6 +7,7 @@ import Link from "next/link";
  * 404 → not-found state (hidden rows surface as 404 to unauthorized roles, AD-19).
  */
 import { use, useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -16,6 +17,8 @@ import { Modal } from "@/components/ui/Modal";
 import { TaskList } from "@/components/task/TaskList";
 import { useIncidents } from "@/stores/incidents";
 import { useTasks } from "@/stores/tasks";
+import { useMap } from "@/stores/map";
+import { useAlerts } from "@/stores/alerts";
 import { useAuthSession } from "@/hooks/useAuth";
 import { API_URL, DEPARTMENTS } from "@/lib/constants";
 import { request } from "@/api/client";
@@ -73,6 +76,43 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
   } = useTasks();
   const canAssign = can("task.assign");
   const canUpdate = can("task.update");
+  const router = useRouter();
+  const toast = useAlerts((s) => s.toast);
+  const selectIncident = useMap((s) => s.select);
+
+  // ↗ Share — native share sheet when available, clipboard copy otherwise.
+  const shareIncident = useCallback(() => {
+    const url = `${window.location.origin}/incidents/${id}`;
+    if (navigator.share) {
+      navigator.share({ title: "ASTRA incident", url }).catch(() => undefined);
+      return;
+    }
+    navigator.clipboard
+      ?.writeText(url)
+      .then(() =>
+        toast({ title: "Link copied", body: url, tone: "success" }),
+      )
+      .catch(() =>
+        toast({
+          title: "Could not copy",
+          body: url,
+          tone: "critical",
+        }),
+      );
+  }, [id, toast]);
+
+  // View on Map → — select the pin in the map store, then open the map.
+  const viewOnMap = useCallback(() => {
+    selectIncident(id);
+    router.push("/map");
+  }, [id, selectIncident, router]);
+
+  // Update Status → scroll to the lifecycle card (real phase controls).
+  const goToLifecycle = useCallback(() => {
+    document
+      .getElementById("incident-lifecycle")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   // --- people directory (real assignees, GET /api/v1/users) ---
   const [usersByDept, setUsersByDept] = useState<Record<string, UserOut[]>>({});
@@ -356,9 +396,11 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
             {inc.category} — {inc.location_text ?? inc.region ?? "—"}
           </span>
           <div className="ml-auto flex gap-2">
-            <Button>↗ Share</Button>
+            <Button onClick={shareIncident}>↗ Share</Button>
             {can("incident.coordinate") && (
-              <Button variant="primary">Update Status</Button>
+              <Button variant="primary" onClick={goToLifecycle}>
+                Update Status
+              </Button>
             )}
           </div>
         </div>
@@ -457,7 +499,7 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
             <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
               {inc.description ?? "No description provided."}
             </p>
-            <Button variant="primary" className="mt-3 w-full">
+            <Button variant="primary" className="mt-3 w-full" onClick={viewOnMap}>
               View on Map →
             </Button>
           </Card>
@@ -538,7 +580,6 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
         >
           <TaskList
             tasks={tasks}
-            canAssign={canAssign}
             canUpdate={canUpdate}
             departments={[...DEPARTMENTS]}
             usersByDept={usersByDept}
@@ -845,7 +886,11 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
 
     {/* incident lifecycle — phase stepper + close (incident.close only) */}
     {canClose && (
-      <Card title="Incident Lifecycle" subtitle="Phase transitions and closure.">
+      <Card
+        id="incident-lifecycle"
+        title="Incident Lifecycle"
+        subtitle="Phase transitions and closure."
+      >
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[10px] text-[var(--muted)]">Response phase</span>
