@@ -394,8 +394,10 @@ const LiveMap = forwardRef<MapActions, LiveMapProps>(function LiveMap(
       />
 
       {!ready && !mapError && (
-        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-[var(--surface)]/80 text-xs text-[var(--muted)]">
-          Loading the operational map…
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl bg-[var(--surface)]/80 p-6">
+          <div className="skeleton h-4 w-2/3" />
+          <div className="skeleton h-4 w-1/2" />
+          <div className="skeleton h-4 w-3/4" />
         </div>
       )}
 

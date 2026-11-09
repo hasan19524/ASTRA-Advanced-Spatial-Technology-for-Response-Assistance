@@ -61,8 +61,15 @@ test.describe("live operations map", () => {
     await expect(page.locator(".astra-pin").first()).toBeVisible();
 
     // ---- The layer panel must not claim capabilities the system lacks ----
+    // Team GPS is still absent and the copy must say so (AGENTS.md hard rule 5:
+    // never claim a capability the system does not have).
     await expect(
-      page.locator("text=Live traffic and team GPS are not available"),
+      page.locator("text=Team GPS is not available"),
+    ).toBeVisible();
+    // Traffic is a real provider-backed layer now (AD-45) - it must be
+    // offered in the panel, not hidden or faked.
+    await expect(
+      page.locator("text=Live traffic (TomTom)"),
     ).toBeVisible();
 
     // ---- Clicking a pin opens its dispatch card ----

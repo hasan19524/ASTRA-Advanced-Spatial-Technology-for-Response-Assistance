@@ -52,8 +52,8 @@ export function AssigneeSelect({
         onClick={() => setOpen(!open)}
         className={
           open
-            ? "rounded-lg border border-[var(--primary)] bg-[var(--primary-soft)] px-3 py-2 text-[11px] cursor-pointer"
-            : "rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-[11px] cursor-pointer hover:border-[var(--border-strong)]"
+            ? "min-h-10 rounded-lg border border-[var(--primary)] bg-[var(--primary-soft)] px-3 py-2 text-[11px] cursor-pointer"
+            : "min-h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-[11px] cursor-pointer hover:border-[var(--border-strong)]"
         }
       >
         <span>
@@ -73,7 +73,7 @@ export function AssigneeSelect({
                   <button
                     key={u.id}
                     onClick={() => toggle(u.id)}
-                    className={`flex items-center gap-2 w-full px-2 py-1.5 text-[10px] transition-colors ${
+                    className={`flex items-center gap-2 w-full min-h-10 px-2 py-1.5 text-[10px] transition-colors ${
                       isSelected ? "bg-[var(--primary-soft)] text-[var(--primary)]" : "text-[var(--foreground)] hover:bg-[var(--surface-2)]"
                     }`}
                     disabled={disabled}

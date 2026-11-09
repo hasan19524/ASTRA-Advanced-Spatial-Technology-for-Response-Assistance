@@ -58,6 +58,9 @@ export default function AuditPage() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [filters, setFilters] = useState({ actor_id: "", action: "", since: "" });
+  // True until the first load settles — without it the table would flash
+  // its empty state before the request has even started.
+  const [firstLoadDone, setFirstLoadDone] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -83,7 +86,7 @@ export default function AuditPage() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load();
+    void load().finally(() => setFirstLoadDone(true));
   }, [load]);
 
   if (!can("audit.read")) {
@@ -117,8 +120,17 @@ export default function AuditPage() {
       <div className="grid gap-4 lg:grid-cols-4">
         <div className="lg:col-span-3">
           <Card title="Audit Log">
-            {loading && logs.length === 0 ? (
-              <div className="p-6 text-center text-xs text-[var(--muted)]">Loading audit log…</div>
+            {(loading || !firstLoadDone) && logs.length === 0 ? (
+              <div
+                className="space-y-2 p-4"
+                aria-busy="true"
+                role="status"
+                aria-label="Loading audit log"
+              >
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="skeleton h-8 w-full" />
+                ))}
+              </div>
             ) : displayLogs.length === 0 ? (
               <EmptyState title="No audit entries" body="No log entries match the current filters." icon="◐" />
             ) : (
@@ -185,7 +197,7 @@ export default function AuditPage() {
                 <input
                   value={filters.actor_id}
                   onChange={(e) => setFilters((f) => ({ ...f, actor_id: e.target.value }))}
-                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-[10px] focus:border-[var(--primary)] focus:outline-none"
+                  className="w-full min-h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-[10px] focus:border-[var(--primary)] focus:outline-none"
                 />
               </div>
               <div>
@@ -193,7 +205,7 @@ export default function AuditPage() {
                 <input
                   value={filters.action}
                   onChange={(e) => setFilters((f) => ({ ...f, action: e.target.value }))}
-                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-[10px] focus:border-[var(--primary)] focus:outline-none"
+                  className="w-full min-h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-[10px] focus:border-[var(--primary)] focus:outline-none"
                 />
               </div>
               <div>
@@ -201,7 +213,7 @@ export default function AuditPage() {
                 <input
                   value={filters.since}
                   onChange={(e) => setFilters((f) => ({ ...f, since: e.target.value }))}
-                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-[10px] focus:border-[var(--primary)] focus:outline-none"
+                  className="w-full min-h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-[10px] focus:border-[var(--primary)] focus:outline-none"
                 />
               </div>
               <div className="flex gap-2">

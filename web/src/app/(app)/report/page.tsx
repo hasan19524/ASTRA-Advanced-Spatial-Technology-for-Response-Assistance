@@ -514,7 +514,7 @@ export default function ReportPage() {
               value={voiceLanguage.selected}
               onChange={(e) => voiceLanguage.select(e.target.value)}
               aria-label="Voice input language"
-              className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-[10px] focus:border-[var(--primary)] focus:outline-none"
+              className="min-h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-[10px] focus:border-[var(--primary)] focus:outline-none"
             >
               {voiceLanguage.languages.map((l) => (
                 <option key={l.code} value={l.code}>
@@ -539,7 +539,7 @@ export default function ReportPage() {
             <div className="rounded-lg border border-[var(--border)]/40 bg-[var(--primary-soft)]/30 p-2 text-[10px]">
               <span className="text-[var(--primary)] font-bold text-[10px]">Transcript:</span>{" "}
               {voiceTranscript}
-              <p className="mt-1 text-[9px] text-[var(--subtle)]">
+              <p className="mt-1 text-[10px] text-[var(--muted)]">
                 Speech-to-text by Gnani AI Prisma — editable above before you submit.
               </p>
             </div>

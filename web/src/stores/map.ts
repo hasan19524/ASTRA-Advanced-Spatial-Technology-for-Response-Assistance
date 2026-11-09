@@ -5,13 +5,10 @@ import { create } from "zustand";
 interface MapState {
   /** Delhi NCR centre (AD-13) */
   center: [number, number];
-  zoom: number;
   layers: { incidents: boolean; teams: boolean; routes: boolean; closures: boolean; traffic: boolean };
   selectedIncidentId: string | null;
   live: boolean;
 
-  setCenter: (c: [number, number]) => void;
-  setZoom: (z: number) => void;
   toggleLayer: (key: keyof MapState["layers"]) => void;
   select: (id: string | null) => void;
   setLive: (v: boolean) => void;
@@ -19,13 +16,10 @@ interface MapState {
 
 export const useMap = create<MapState>((set) => ({
   center: [28.6139, 77.209], // New Delhi
-  zoom: 11,
   layers: { incidents: true, teams: true, routes: true, closures: false, traffic: false },
   selectedIncidentId: null,
   live: true,
 
-  setCenter: (center) => set({ center }),
-  setZoom: (zoom) => set({ zoom }),
   toggleLayer: (key) =>
     set((s) => ({ layers: { ...s.layers, [key]: !s.layers[key] } })),
   select: (id) => set({ selectedIncidentId: id }),

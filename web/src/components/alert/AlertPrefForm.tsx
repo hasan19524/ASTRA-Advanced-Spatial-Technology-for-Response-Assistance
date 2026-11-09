@@ -7,10 +7,8 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { useAlerts } from "@/stores/alerts";
 import { useAuthSession } from "@/hooks/useAuth";
-import { CATEGORIES } from "@/lib/constants";
+import { CATEGORIES, NCR_REGIONS } from "@/lib/constants";
 import type { AlertPrefIn } from "@/api/openapi-types";
-
-const SEVERITIES = ["Critical", "High", "Major", "Moderate", "Minor"] as const;
 
 export function AlertPrefForm() {
   const { token } = useAuthSession();
@@ -50,9 +48,9 @@ export function AlertPrefForm() {
           className="min-h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-[10px] focus:border-[var(--primary)] focus:outline-none"
         >
           <option value="">All regions</option>
-          {CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
+          {NCR_REGIONS.map((r) => (
+            <option key={r} value={r}>
+              {r}
             </option>
           ))}
         </select>
@@ -62,20 +60,25 @@ export function AlertPrefForm() {
           className="min-h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-[10px] focus:border-[var(--primary)] focus:outline-none"
         >
           <option value="">All categories</option>
-          {SEVERITIES.map((s) => (
-            <option key={s} value={s}>
-              {s}
+          {CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
             </option>
           ))}
         </select>
         <div className="flex items-end gap-2">
-          <label className="text-[10px] text-[var(--muted)] flex items-center gap-1 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={enabled}
-              onChange={(e) => setEnabled(e.target.checked)}
-              className="h-4 w-4 accent-[var(--primary)]"
-            />
+          {/* The whole label is the hit area: the checkbox sits inside a
+              40x40 padded wrapper, so the tap target clears the 40 px
+              floor without making the visual checkbox huge. */}
+          <label className="flex min-h-10 cursor-pointer items-center gap-1 text-[10px] text-[var(--muted)]">
+            <span className="flex h-10 w-10 items-center justify-center">
+              <input
+                type="checkbox"
+                checked={enabled}
+                onChange={(e) => setEnabled(e.target.checked)}
+                className="h-4 w-4 accent-[var(--primary)]"
+              />
+            </span>
             Enabled
           </label>
           <Button variant="primary" onClick={save}>

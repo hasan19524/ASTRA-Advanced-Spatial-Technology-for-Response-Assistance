@@ -127,9 +127,6 @@ async def create_task(db, user, incident_id, payload) -> ResponseTask:
         db.add(Assignment(task_id=task.id, assignee_id=aid, assigned_by=user.id))
     await db.commit()
     await db.refresh(task)
-    await incident_service.publish_incident_updated_safe(incident) if hasattr(
-        incident_service, "publish_incident_updated_safe"
-    ) else None
     try:
         from app.services.map_ws import publish_incident_updated
 

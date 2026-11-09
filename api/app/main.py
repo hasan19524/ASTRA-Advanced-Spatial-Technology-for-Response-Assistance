@@ -40,19 +40,13 @@ from app.services.media_storage import UPLOADS_DIR
 async def _alert_sweeper():
     while True:
         try:
-            from datetime import datetime, timezone
-            from sqlalchemy import delete
             from app.core.database import get_session_factory
-            from app.models import Alert
+            from app.services import alert_service
 
             async with get_session_factory()() as db:
-                await db.execute(
-                    delete(Alert).where(
-                        Alert.expires_at.is_not(None),
-                        Alert.expires_at < datetime.now(timezone.utc),
-                    )
-                )
-                await db.commit()
+                # Archive (never delete) expired alerts -- see
+                # alert_service.archive_expired_alerts for why.
+                await alert_service.archive_expired_alerts(db)
         except Exception:
             pass
         # Weather ingestion tick (every 5 min)

@@ -119,9 +119,10 @@ Two WebSocket channels: `/ws/map` (incident created/updated fan-out, query-strin
 | Gnani `api.vachana.ai` | STT / TTS | `X-API-Key-ID` header | Yes |
 | Groq / OpenRouter / NVIDIA | Assistant LLM + assessment fallback | `Authorization: Bearer` | Yes (free tiers exist) |
 | OpenWeatherMap | Weather ingestion | `appid` query param | Yes |
-| Nominatim | Geocoding | `User-Agent: ASTRA/1.0`, no key | No — unauthenticated, unrate-limited |
+| Nominatim | Geocoding | `User-Agent: ASTRA/1.0`, no key | No — but the endpoint now requires a session and is rate-limited (AD-42), because anonymous hits spend the provider's quota |
 | OSM raster tiles | Map tiles | None | No |
 | TomTom Traffic | Traffic flow (current vs free-flow speed) | `key` query param, server-side | Yes (key validated live) |
+| OpenAI (gpt-4o) | Image evidence understanding | `Authorization: Bearer`, server-side | Yes (key validated live; provider is swappable via `VISION_PROVIDER`) |
 
 ### System architecture diagram
 
@@ -261,6 +262,22 @@ Browser records OGG (Gnani-documented format, not WebM). On the backend, WebM is
 **Trade-off.** None — these are correctness fixes, not feature changes.
 
 **Outcome.** Fixed earlier (AD-31…AD-38, map-control closeout).
+
+### 10. Alerts that no one could see
+
+**Problem.** The alert geo-target filter compared `user.department` (`"Fire & Rescue"`) against `Alert.area` (`"Central Delhi"`) — two different namespaces, so the comparison **never matched**. A department head received only `area="*"` broadcasts; every region-targeted alert was invisible to them. The reverse also existed: `area="Mars"` created a row that the filter silently dropped, with no error anywhere.
+
+**Solution.** Rebuilt geo-targeting as the union of three explicit sources (AD-39): CENTRAL_ADMIN → every NCR region (they *publish* the alerts — an admin must see what they just published), a department → every NCR region (departments are city-wide responders, AD-34), a citizen → their enabled `UserAlertPref.region`; empty → broadcasts only. `area` is now validated at write time against the NCR allowlist, so an unknown or mis-cased region is a **422**, not a silent black hole (AD-40).
+
+**Outcome.** 17 new tests in `api/tests/test_alerts.py` pin every branch; `scripts/verify-module1.ps1` proves it against the running server.
+
+### 11. A verification script that kept failing for reasons that were not bugs
+
+**Problem.** The new `scripts/verify-module1.ps1` reported `409` on the phase-ladder checks. Two separate causes, neither a defect in the code under test: (a) the backend groups a report under an existing incident when it shares ≥50% of its tokens with a same-region, same-category incident younger than 30 minutes, so the second run's "probe" was filed under the first run's incident — which was still at phase `ACTIVE`; (b) production runs the **LLM** assessment backend, not the rules stub, and it correctly assessed a title made of random hex (`"Dispatch probe 7769f2…"`) as `DEFINITELY_FALSE` — it reads as a prank with no hazard in it.
+
+**Solution.** The probe now rotates through 14 (region, category) pairs so the dedupe key is always unique, and files a realistic hazard report. Both traps are documented in the script header, because the next person to write a verification script will hit them too.
+
+**Outcome.** `29 passed, 0 failed`, EXIT=0 — and the two "failures" were the system working correctly, which is exactly what a verification script is for.
 ## Technology stack
 
 | Category | Technology | Purpose |
@@ -271,7 +288,7 @@ Browser records OGG (Gnani-documented format, not WebM). On the backend, WebM is
 | Database | PostgreSQL 16 | Primary data store |
 | Cache / pub/sub | Redis 7 | Rate limiting, WebSocket channels |
 | AI — STT | Gnani Prisma (`api.vachana.ai`) | Speech-to-text, `X-API-Key-ID` auth |
-| AI — TTS | Gnani Timbre (`api.vachana.ai`) | Server-side text-to-speech, no UI consumer |
+| AI — TTS | Gnani Timbre (`api.vachana.ai`) | Server-side text-to-speech with a UI consumer ("Listen" on assistant answers) |
 | AI — LLM | Groq → OpenRouter → NVIDIA → `rules_stub` | Assistant + assessment fallback chain |
 | Migrations | Alembic | Schema versioning at head |
 | Auth | Argon2id, PyJWT HS256 | Password hashing, access/refresh tokens |
@@ -422,12 +439,12 @@ npm run dev   # :3000, Turbopack
 
 ### 7. Run the tests
 
-**Backend** (real Postgres + Redis via Docker, ~17 min):
+**Backend** (real Postgres + Redis via Docker, ~26 min):
 
 ```powershell
 cd api
 python -m pytest -q
-# → 130 passed, 1 skipped (known Windows WS teardown flake, passes on Linux/CI)
+# → 175 passed, 1 skipped (known Windows WS teardown flake, passes on Linux/CI)
 ```
 
 **Frontend lint + build + unit tests:**
@@ -446,6 +463,22 @@ cd web
 npx playwright test --workers=1
 # → 6 passed
 ```
+
+**Live-stack verification (curl against the running API, no mocks):**
+
+```powershell
+# auth: registration, login, refresh, token tamper, RBAC, argon2id salt proof
+powershell -File scripts\verify-auth.ps1
+# → === RESULT: 16 passed, 0 failed ===
+
+# dispatch arc: report → task → transitions → phase ladder → close/reopen →
+# alerts + geo-targeting → stats → the P1 auth boundaries
+powershell -File scripts\verify-module1.ps1
+# → === RESULT: 29 passed, 0 failed ===
+```
+
+Both scripts exit non-zero on the first failed expectation, so they work as CI gates.
+`verify-module1.ps1` needs `DEMO_MODE=true` and the seeded demo accounts.
 ## Environment variables
 
 All variables are read via pydantic-settings from `.env` (gitignored). Never commit real values.
@@ -476,6 +509,10 @@ All variables are read via pydantic-settings from `.env` (gitignored). Never com
 | `ROUTING_PREWARM` | `True` | No | Load OSM graph at startup (~7 s, ~200 MB) |
 | `MEDIA_STORAGE` | `"local"` | No | `local` (dev disk) or `s3` (R2/AWS S3/MinIO, required in prod) |
 | `MEDIA_URL_TTL_SECONDS` | `3600` | No | Signed URL expiry |
+| `VISION_PROVIDER` | `"openai"` | No | `openai` (gpt-4o) or `gemini` (stub) — see AD-44 |
+| `OPENAI_API_KEY` / `OPENAI_VISION_MODEL` | `""` / `"gpt-4o"` | No | Hosted vision provider for image evidence |
+| `GEMINI_API_KEY` / `GEMINI_MODEL` | `""` / `"gemini-2.0-flash"` | No | Alternate hosted vision provider (swappable) |
+| `TOMTOM_API_KEY` / `TOMTOM_BASE_URL` | `""` / `"https://api.tomtom.com"` | No | Live traffic flow overlay (AD-45) |
 | `S3_ENDPOINT_URL` / `S3_REGION` / `S3_BUCKET` / `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_KEY_PREFIX` | `""` / `"auto"` / `""` / `""` / `""` / `"evidence"` | No | S3-compatible bucket config (used when `MEDIA_STORAGE=s3`) |
 
 **Phase 7 (not yet wired into code — supplied separately):**

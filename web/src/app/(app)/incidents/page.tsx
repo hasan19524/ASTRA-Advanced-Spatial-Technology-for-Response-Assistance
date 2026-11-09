@@ -42,6 +42,9 @@ export default function IncidentsPage() {
     disconnectWS,
   } = useIncidents();
   const [offset, setOffset] = useState(0);
+  // True until the first load settles — without it the table would flash
+  // its empty state before the request has even started.
+  const [firstLoadDone, setFirstLoadDone] = useState(false);
 
   // load on mount + whenever filters change (server-side via query params)
   useEffect(() => {
@@ -51,7 +54,7 @@ export default function IncidentsPage() {
       verification: filters.verification,
       offset,
       limit: PAGE_SIZE,
-    }, token);
+    }, token).finally(() => setFirstLoadDone(true));
   }, [load, filters.category, filters.assessment, filters.verification, offset, token]);
 
   // live-map WS: prepend fresh public incidents (AD-10)
@@ -160,9 +163,16 @@ export default function IncidentsPage() {
         </div>
       )}
 
-      {loading && items.length === 0 ? (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center text-xs text-[var(--muted)]">
-          Loading incidents…
+      {(loading || !firstLoadDone) && items.length === 0 ? (
+        <div
+          className="space-y-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4"
+          aria-busy="true"
+          role="status"
+          aria-label="Loading incidents"
+        >
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="skeleton h-8 w-full" />
+          ))}
         </div>
       ) : (
         <DataTable

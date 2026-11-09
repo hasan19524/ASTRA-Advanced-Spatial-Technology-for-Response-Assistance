@@ -47,6 +47,27 @@ NCR_REGIONS: frozenset[str] = frozenset(
     }
 )
 
+# Ordered mirror of NCR_REGIONS. The frozenset above is for membership tests;
+# this tuple is for anything that has to *display* the regions in a stable,
+# predictable order (alert targeting dropdowns, validation messages, docs).
+NCR_REGION_TUPLE: tuple[str, ...] = (
+    "Central Delhi",
+    "South Delhi",
+    "Old Delhi",
+    "East Delhi",
+    "North Delhi",
+    "West Delhi",
+    "Rohini",
+    "Dwarka",
+    "Yamuna Basin",
+    "Airport",
+    "Noida",
+    "Gurugram",
+    "Ghaziabad",
+    "Faridabad",
+)
+NCR_REGION_SET: frozenset[str] = frozenset(NCR_REGION_TUPLE)
+
 # Browser-location fallback when a report arrives without coordinates —
 # the Day 3 form has no map picker yet (Day 6 adds real pinning).
 NCR_CENTER_LAT = 28.61
@@ -72,6 +93,17 @@ DEPARTMENTS: tuple[str, ...] = (
     "Water & Drainage",
 )
 DEPARTMENT_SET: frozenset[str] = frozenset(DEPARTMENTS)
+
+# Geo-targeting: maps a department to the NCR regions it covers. Departments are
+# city-wide responders (AD-14), so each covers every region ASTRA covers.
+# A user with no department (a citizen) falls back to their own explicit
+# alert preferences, and to broadcast-only ("*") alerts when they have none.
+DEPARTMENT_REGIONS: dict[str, tuple[str, ...]] = {
+    dept: NCR_REGION_TUPLE for dept in DEPARTMENTS
+}
+
+# "*" is the CAP-style broadcast marker: an alert every user must see.
+BROADCAST_AREA = "*"
 
 # AD-8 — evidence photos live in `api/uploads/`, served back statically.
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5 MB

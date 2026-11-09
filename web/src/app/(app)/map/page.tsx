@@ -43,6 +43,7 @@ export default function LiveMapPage() {
   const {
     items,
     total: incidentTotal,
+    loading,
     load,
     connectWS,
     disconnectWS,
@@ -85,12 +86,15 @@ export default function LiveMapPage() {
   const [locations, setLocations] = useState<
     { id: string; name: string | null }[]
   >([]);
+  // True until the first incident load settles — without it the map would
+  // flash "No public incidents yet" before the request even starts.
+  const [firstLoadDone, setFirstLoadDone] = useState(false);
 
   useEffect(() => {
     if (!hydrated) return;
     // The map shows every incident the caller may see, not the first page
     // of 20 the list screen uses. 500 is the API's hard cap.
-    void load({ limit: 500 }, token);
+    void load({ limit: 500 }, token).finally(() => setFirstLoadDone(true));
   }, [load, token, hydrated]);
 
   useEffect(() => {
@@ -298,7 +302,19 @@ export default function LiveMapPage() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          {items.length === 0 ? (
+          {(loading || !firstLoadDone) && items.length === 0 ? (
+            /* Skeleton placeholder for the map canvas — the real map mounts
+               as soon as the first incidents arrive. */
+            <div
+              className="min-h-[520px] space-y-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4"
+              aria-busy="true"
+              role="status"
+              aria-label="Loading map"
+            >
+              <div className="skeleton h-4 w-1/3" />
+              <div className="skeleton min-h-[440px] w-full" />
+            </div>
+          ) : items.length === 0 ? (
             <EmptyState
               title="No public incidents yet"
               body="Be the first to report — new submissions appear here live."
@@ -364,21 +380,25 @@ export default function LiveMapPage() {
                 ).map(([key, label]) => (
                   <label
                     key={key}
-                    className="flex cursor-pointer items-center justify-between py-1 text-[11px]"
+                    className="flex min-h-10 cursor-pointer items-center justify-between text-[11px]"
                   >
                     <span className="text-[var(--muted)]">{label}</span>
-                    <input
-                      type="checkbox"
-                      checked={layers[key]}
-                      onChange={() => {
-                        toggleLayer(key);
-                        if (key === "traffic") {
-                          if (!layers.traffic) void fetchTraffic();
-                          else setTrafficData(null);
-                        }
-                      }}
-                      className="h-4 w-4 accent-[var(--primary)]"
-                    />
+                    {/* The checkbox keeps its 16 px visual size; the padded
+                        wrapper is the 40x40 tap target. */}
+                    <span className="flex h-10 w-10 items-center justify-center">
+                      <input
+                        type="checkbox"
+                        checked={layers[key]}
+                        onChange={() => {
+                          toggleLayer(key);
+                          if (key === "traffic") {
+                            if (!layers.traffic) void fetchTraffic();
+                            else setTrafficData(null);
+                          }
+                        }}
+                        className="h-4 w-4 accent-[var(--primary)]"
+                      />
+                    </span>
                   </label>
                 ))}
               </div>
@@ -534,7 +554,7 @@ export default function LiveMapPage() {
                       <button
                         type="button"
                         onClick={() => void routeToIncident(g)}
-                        className="shrink-0 rounded border border-[var(--border-strong)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--primary)] hover:bg-[var(--surface-2)]"
+                        className="shrink-0 min-h-10 rounded border border-[var(--border-strong)] px-2 py-1 text-[10px] font-semibold text-[var(--primary)] hover:bg-[var(--surface-2)]"
                       >
                         Route here
                       </button>

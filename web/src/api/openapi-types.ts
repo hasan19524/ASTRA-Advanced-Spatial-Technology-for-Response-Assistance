@@ -1,7 +1,7 @@
 /**
  * AUTO-GENERATED from http://localhost:8000/openapi.json — do not edit by hand.
  * Regenerate:  npm run contracts:sync
- * Generated: 2026-11-08T09:46:54.337Z
+ * Generated: 2026-11-09T21:28:49.801Z
  */
 export interface AlertCreateIn {
   event: string;
@@ -25,6 +25,7 @@ export interface AlertOut {
   area: string;
   published_by?: string | null;
   expires_at?: string | null;
+  expired_at?: string | null;
   created_at: string;
 }
 
@@ -52,6 +53,12 @@ export interface AssessmentOut {
   created_at: string;
 }
 
+export interface Body_analyze_evidence_api_v1_evidence_analyze_post {
+  image: string;
+  incident_description: string;
+  category: string;
+}
+
 export interface Body_speech_to_text_api_v1_voice_stt_post {
   audio: string;
   language_code?: string;
@@ -65,6 +72,7 @@ export interface Body_submit_report_api_v1_incidents_post {
   latitude?: number | null;
   longitude?: number | null;
   location_text?: string | null;
+  source?: string | null;
   photo?: string | null;
 }
 
@@ -88,6 +96,17 @@ export interface DepartmentOut {
   personnel_count?: number;
   open_tasks?: number;
   total_tasks?: number;
+}
+
+export interface EvidenceAnalysis {
+  image_quality: string;
+  image_relevance: string;
+  detected_objects?: Array<string>;
+  incident_consistency: string;
+  authenticity_assessment: string;
+  confidence: number;
+  explanation: string;
+  human_review_required: boolean;
 }
 
 export interface HTTPValidationError {
@@ -296,6 +315,12 @@ export interface TokenResponse {
   refresh_token: string;
   token_type?: string;
   user: UserOut;
+}
+
+export interface TtsIn {
+  text: string;
+  language_code?: string;
+  voice?: string;
 }
 
 export interface UserDirectoryOut {

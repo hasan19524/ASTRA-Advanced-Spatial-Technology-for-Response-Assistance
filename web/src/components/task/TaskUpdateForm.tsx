@@ -31,7 +31,7 @@ export function TaskUpdateForm({ taskId, onUpdate, disabled = false }: TaskUpdat
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Add an update note…"
-          className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-[10px] focus:border-[var(--primary)] focus:outline-none"
+          className="flex-1 min-h-10 rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-[10px] focus:border-[var(--primary)] focus:outline-none"
           disabled={disabled}
         />
         <Button variant="secondary" disabled={!note.trim() || disabled} onClick={add}>

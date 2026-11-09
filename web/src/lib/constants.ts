@@ -48,6 +48,30 @@ export const DEPARTMENTS = [
   "Water & Drainage",
 ] as const;
 
+/**
+ * AD-13 — the NCR regions ASTRA covers. Mirrors
+ * api/app/core/constants.py (NCR_REGION_TUPLE). Kept in the same order so the
+ * alert-targeting dropdown and the backend validation message read the same.
+ */
+export const NCR_REGIONS = [
+  "Central Delhi",
+  "South Delhi",
+  "Old Delhi",
+  "East Delhi",
+  "North Delhi",
+  "West Delhi",
+  "Rohini",
+  "Dwarka",
+  "Yamuna Basin",
+  "Airport",
+  "Noida",
+  "Gurugram",
+  "Ghaziabad",
+  "Faridabad",
+] as const;
+
+export type NcrRegion = (typeof NCR_REGIONS)[number];
+
 /** AD-15 — 8 incident categories */
 export const CATEGORIES = [
   "Fire",

@@ -118,11 +118,6 @@ async def patch_task(
     user: User = Depends(require_permission("task.update")),
     db: AsyncSession = Depends(get_db),
 ) -> TaskOut:
-    # allow dept heads/admins (task.assign or task.create) to patch too
-    if "task.update" not in __import__(
-        "app.core.permissions", fromlist=["permissions_for"]
-    ).permissions_for(user.role):
-        pass
     task = await svc.patch_task(db, user, task_id, payload)
     return await svc.to_out(db, task)
 

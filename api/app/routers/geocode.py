@@ -1,13 +1,21 @@
 """Geocoding router — Nominatim (free, no API key)."""
 
-from fastapi import APIRouter, Query
 import httpx
+from fastapi import APIRouter, Depends, Query
+
+from app.core.deps import get_current_user
+from app.core.rate_limit import rate_limit_auth
+from app.models import User
 
 router = APIRouter(prefix="/geocode", tags=["geocode"])
 
 
 @router.get("/search")
-async def search(q: str = Query(..., min_length=2)):
+async def search(
+    q: str = Query(..., min_length=2),
+    user: User = Depends(get_current_user),
+    _rl=Depends(rate_limit_auth),
+):
     url = "https://nominatim.openstreetmap.org/search"
     params = {
         "q": q,

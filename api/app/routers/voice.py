@@ -2,10 +2,18 @@
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import Response
+from pydantic import BaseModel, Field
 
 from app.core.deps import get_current_user
 from app.models import User
 from app.services import voice_service as svc
+
+
+class TtsIn(BaseModel):
+    text: str = Field(..., min_length=1, max_length=5000)
+    language_code: str = "hi-IN"
+    voice: str = "Nalini"
+
 
 router = APIRouter(prefix="/voice", tags=["voice"])
 
@@ -39,14 +47,10 @@ async def speech_to_text(
 
 
 @router.post("/tts")
-async def text_to_speech(payload: dict, user: User = Depends(get_current_user)):
-    text = payload.get("text", "")
-    language_code = payload.get("language_code", "hi-IN")
-    voice = payload.get("voice", "Nalini")
-    if not text:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="text is required"
-        )
+async def text_to_speech(payload: TtsIn, user: User = Depends(get_current_user)):
+    text = payload.text
+    language_code = payload.language_code
+    voice = payload.voice
     try:
         audio = await svc.tts(text, language_code, voice)
     except Exception as exc:
