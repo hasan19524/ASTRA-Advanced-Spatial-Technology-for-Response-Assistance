@@ -18,14 +18,14 @@
 | # | Phase | Status | Notes |
 |---|---|---|---|
 | 1 | Complete core application (auth, reporting, lifecycle, verification) | IN PROGRESS | Inspection first |
-| 2 | Complete Gnani AI integration (STT verified, TTS UI consumer) | PENDING | |
-| 3 | Image evidence intelligence (hosted vision API, modular) | PENDING | Gemini free tier to be verified first |
-| 4 | Live map & geospatial system | PENDING | Do not rebuild the 879k-edge graph |
+| 2 | Complete Gnani AI integration (STT verified, TTS UI consumer) | DONE | TTS Listen button on assistant page, Gnani attribution on report form |
+| 3 | Image evidence intelligence (hosted vision API, modular) | DONE | Pillow validation + OpenAI gpt-4o vision (configurable), Gemini stub, 17 tests |
+| 4 | Live map & geospatial system | DONE | TomTom traffic overlay added, real flow data |
 | 5 | Simulation engine | PENDING | Heuristic exists (PL-14) |
 | 6 | Emergency team management | PENDING | Task board exists |
 | 7 | Assistance & real-time communication | PENDING | Conversation ownership fixed in P0 |
 | 8 | Security & reliability | PENDING | P0 fixes landed; P1 items listed below |
-| 9 | UI/UX completion | PENDING | 13 routes; P1 tap targets remain |
+| 9 | UI/UX completion | PARTIAL | Tap targets fixed for map controls + buttons; remaining P1 items (alert checkbox, voice select, modal close) |
 | 10 | Database & performance | PENDING | Routing dataset must not be rebuilt |
 | 11 | Automated testing | PENDING | Per-phase tests as work lands |
 | 12 | Deployment readiness | PENDING | Checklist only — no deploy |

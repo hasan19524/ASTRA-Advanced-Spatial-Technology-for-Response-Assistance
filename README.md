@@ -38,12 +38,13 @@ Everything runs over a **real** OpenStreetMap road graph of Delhi-NCR (406,154 n
 | Feature | Status | What is actually built |
 |---|---|---|
 | Incident reporting | Implemented | Text + optional photo reports via real `POST /api/v1/incidents` (multipart), client-side validation, geolocation, NCR-center fallback disclosed as default |
+| Image evidence intelligence | Implemented | Deterministic Pillow validation (black/white/blank/blur/corrupt/low-res/duplicate) + hosted vision AI (`POST /api/v1/evidence/analyze`) behind a modular `VisionProviderInterface` (OpenAI gpt-4o default, Gemini stub); structured output with honest "undetermined" authenticity; rejected images never invalidate the report |
 | Speech-to-text | Implemented | Gnani Prisma STT via `POST /api/v1/voice/stt`; browser audio recorded as OGG, transcoded to WAV server-side before forwarding; transcript inserted into report description |
-| Gnani AI integration | Implemented (partial) | Prisma STT is live in the product path (report form → transcript → persisted incident). Timbre TTS is implemented server-side but has no UI consumer yet. Evon LLM is not integrated |
+| Gnani AI integration | Implemented (partial) | Prisma STT is live in the product path (report form → transcript → persisted incident). Timbre TTS now has a UI consumer ("Listen" on assistant answers) and returns WAV via `POST /api/v1/voice/tts`. Evon LLM is not integrated |
 | AI-assisted verification | Implemented | Deterministic rules stub with 4 ordered rules (out-of-NCR, blacklist keyword, trusted reporter, absence-is-not-evidence) + multi-provider LLM fallback chain with honest `backend` label in every `assessments` row |
 | Public verification & polling | Implemented | One-vote-per-user enforced by DB unique constraint; polls never write verification status; separate axes kept honest |
 | Officer/admin verification | Implemented | Append-only verification queue, reject-requires-reason, one-way transitions, `VERIFIED` terminal, `REJECTED→VERIFIED` refused |
-| Live incident map | Implemented | Leaflet + real OSM raster tiles (no API key), real incident pins colored by verification status, real Dijkstra polyline, "Locate me", honest "no route between these points" for disconnected pairs |
+| Live incident map | Implemented | Leaflet + real OSM raster tiles (no API key), real incident pins colored by verification status, real Dijkstra polyline, "Locate me", honest "no route between these points" for disconnected pairs; live TomTom traffic overlay (toggle layer, current vs free-flow speed, congestion ratio) |
 | Emergency assistance | Implemented | Multi-provider LLM chain (Groq → OpenRouter → NVIDIA → rules stub), provider attribution on every reply, conversation storage |
 | Simulation engine | Implemented | Documented heuristic (PL-14): affected area, population estimate, infrastructure count, damage estimate — labeled "Not a real forecast", runs on isolated `sim_*` tables with no FKs into live data |
 | Route optimization | Implemented | Dijkstra over travel time on the real OSM graph; `/route/nearest` snaps to routable junctions; closed edges genuinely impassable |
@@ -120,6 +121,7 @@ Two WebSocket channels: `/ws/map` (incident created/updated fan-out, query-strin
 | OpenWeatherMap | Weather ingestion | `appid` query param | Yes |
 | Nominatim | Geocoding | `User-Agent: ASTRA/1.0`, no key | No — unauthenticated, unrate-limited |
 | OSM raster tiles | Map tiles | None | No |
+| TomTom Traffic | Traffic flow (current vs free-flow speed) | `key` query param, server-side | Yes (key validated live) |
 
 ### System architecture diagram
 
@@ -740,6 +742,9 @@ No production deployment exists yet. The stack is designed for free-tier hosting
 
 - Real OpenStreetMap routing graph (406k nodes / 879k edges), memory-engineered to 167 MB
 - Citizen incident reporting with photo upload, geolocation, voice STT (Gnani Prisma)
+- Image evidence intelligence (Pillow validation + hosted vision AI, modular provider interface)
+- TomTom traffic overlay on the live map (real flow data, congestion ratio)
+- Gnani Timbre TTS UI consumer ("Listen" button on assistant answers)
 - AI-assisted verification (rules stub + multi-provider LLM fallback, honest labels)
 - Public verification & polling (one-vote-per-user, separate axes)
 - Officer/admin verification queue (append-only events)
@@ -751,7 +756,7 @@ No production deployment exists yet. The stack is designed for free-tier hosting
 - WebSocket fan-out (`/ws/map`), signed media URLs
 - CI/CD (ruff, pytest, eslint, build, vitest, Playwright)
 
-### In progress (P0 fixes — just completed)
+### In progress (P0 + Phase 2/3/4 — just completed)
 
 - Region allowlist: "North Delhi" / "West Delhi" added + server-side validation
 - Weather sweeper: 60 s → 300 s; `DELHI_POINTS` labels/coordinates corrected

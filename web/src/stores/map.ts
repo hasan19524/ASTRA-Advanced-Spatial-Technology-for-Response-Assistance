@@ -6,7 +6,7 @@ interface MapState {
   /** Delhi NCR centre (AD-13) */
   center: [number, number];
   zoom: number;
-  layers: { incidents: boolean; teams: boolean; routes: boolean; closures: boolean };
+  layers: { incidents: boolean; teams: boolean; routes: boolean; closures: boolean; traffic: boolean };
   selectedIncidentId: string | null;
   live: boolean;
 
@@ -20,7 +20,7 @@ interface MapState {
 export const useMap = create<MapState>((set) => ({
   center: [28.6139, 77.209], // New Delhi
   zoom: 11,
-  layers: { incidents: true, teams: true, routes: true, closures: false },
+  layers: { incidents: true, teams: true, routes: true, closures: false, traffic: false },
   selectedIncidentId: null,
   live: true,
 

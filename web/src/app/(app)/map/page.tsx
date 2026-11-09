@@ -38,7 +38,7 @@ interface GeoResult {
 
 export default function LiveMapPage() {
   const router = useRouter();
-  const { selectedIncidentId, select, layers, toggleLayer, live, setLive } =
+  const { selectedIncidentId, select, layers, toggleLayer, live, setLive, center } =
     useMap();
   const {
     items,
@@ -60,6 +60,25 @@ export default function LiveMapPage() {
   const [geoQuery, setGeoQuery] = useState("");
   const [geoResults, setGeoResults] = useState<GeoResult[]>([]);
   const [geoError, setGeoError] = useState<string | null>(null);
+  const [trafficData, setTrafficData] = useState<{
+    current_speed_kmh: number | null;
+    free_flow_speed_kmh: number | null;
+    congestion_ratio: number | null;
+    road_name: string;
+    available: boolean;
+  } | null>(null);
+  const [trafficLoading, setTrafficLoading] = useState(false);
+  const fetchTraffic = useCallback(async () => {
+    setTrafficLoading(true);
+    try {
+      const res = await request<{ available: boolean; current_speed_kmh: number | null; free_flow_speed_kmh: number | null; congestion_ratio: number | null; road_name: string }>(`/api/v1/traffic/flow?lat=${center[0]}&lon=${center[1]}`, { token });
+      setTrafficData(res);
+    } catch {
+      setTrafficData({ available: false, current_speed_kmh: null, free_flow_speed_kmh: null, congestion_ratio: null, road_name: '' });
+    } finally {
+      setTrafficLoading(false);
+    }
+  }, [center, token]);
   const [geoLoading, setGeoLoading] = useState(false);
 
   const [closures, setClosures] = useState<ClosureSegment[]>([]);
@@ -340,6 +359,7 @@ export default function LiveMapPage() {
                     ["incidents", "Incidents"],
                     ["routes", "Computed route"],
                     ["closures", "Road closures"],
+                    ["traffic", "Live traffic (TomTom)"],
                   ] as const
                 ).map(([key, label]) => (
                   <label
@@ -350,16 +370,50 @@ export default function LiveMapPage() {
                     <input
                       type="checkbox"
                       checked={layers[key]}
-                      onChange={() => toggleLayer(key)}
+                      onChange={() => {
+                        toggleLayer(key);
+                        if (key === "traffic") {
+                          if (!layers.traffic) void fetchTraffic();
+                          else setTrafficData(null);
+                        }
+                      }}
                       className="h-4 w-4 accent-[var(--primary)]"
                     />
                   </label>
                 ))}
               </div>
+              {layers.traffic && (
+                <div className="mt-2 rounded border border-[var(--border)] bg-[var(--background)] p-2 text-[10px]">
+                  {trafficLoading && (
+                    <p className="text-[var(--muted)]">Fetching traffic…</p>
+                  )}
+                  {trafficData && !trafficLoading && (
+                    trafficData.available ? (
+                      <div className="space-y-0.5">
+                        <p className="font-semibold text-[var(--foreground)]">
+                          {trafficData.road_name || "Road segment"}
+                        </p>
+                        <p>
+                          Current: {trafficData.current_speed_kmh ?? "—"} km/h ·
+                          Free flow: {trafficData.free_flow_speed_kmh ?? "—"} km/h
+                        </p>
+                        <p className={trafficData.congestion_ratio !== null && trafficData.congestion_ratio < 0.5 ? "text-[var(--danger)]" : "text-[var(--muted)]"}>
+                          {trafficData.congestion_ratio !== null
+                            ? `Congestion: ${Math.round((1 - trafficData.congestion_ratio) * 100)}%`
+                            : "No congestion data"}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-[var(--danger)]">
+                        Traffic service unavailable — TomTom key not configured or quota exceeded.
+                      </p>
+                    )
+                  )}
+                </div>
+              )}
               <p className="mt-2 text-[10px] text-[var(--subtle)]">
-                Live traffic and team GPS are not available: no traffic
-                provider key is configured and no user carries a position.
-                They are not faked here.
+                Team GPS is not available: no user carries a position. It is not faked here.
+                Traffic data is fetched live from TomTom when the layer is enabled.
               </p>
             </div>
 
@@ -569,3 +623,4 @@ export default function LiveMapPage() {
     </div>
   );
 }
+

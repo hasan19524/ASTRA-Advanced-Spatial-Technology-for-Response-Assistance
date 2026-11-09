@@ -18,7 +18,6 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { useAssistant } from "@/stores/assistant";
 import { useAuthSession } from "@/hooks/useAuth";
-import { request } from "@/api/client";
 import { API_URL } from "@/lib/constants";
 
 /** Starter questions that exercise the real backend paths. */

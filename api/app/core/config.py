@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     gnani_api_key: str = ""
     gnani_base_url: str = "https://api.vachana.ai"
 
+    # --- TomTom traffic (Phase 7) ---
+    tomtom_api_key: str = ""
+    tomtom_base_url: str = "https://api.tomtom.com"
+
     # --- Vision / image evidence (Phase 3) ---
     # Hosted-API-based image understanding. Provider is selected by
     # VISION_PROVIDER ("openai" default, "gemini" stub). Keys live in .env.

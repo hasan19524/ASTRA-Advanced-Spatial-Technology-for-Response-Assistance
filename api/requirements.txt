@@ -13,3 +13,6 @@ email-validator==2.2.0
 # Evidence media storage on an S3-compatible bucket (Cloudflare R2 / AWS S3).
 # Required in production: Render's free tier has an ephemeral filesystem.
 boto3==1.43.126
+
+# Image evidence validation (Pillow — deterministic quality checks, no local ML model).
+Pillow==11.3.0

@@ -28,6 +28,7 @@ from app.routers import (
     simulation,
     stats,
     tasks,
+    traffic,
     verification,
     voice,
     weather,
@@ -149,6 +150,7 @@ app.include_router(coordination.router, prefix="/api/v1")
 app.include_router(alerts.router, prefix="/api/v1")
 app.include_router(alerts.ws_router)
 app.include_router(stats.router, prefix="/api/v1")
+app.include_router(traffic.router, prefix="/api/v1")
 app.include_router(audit.router, prefix="/api/v1")
 app.include_router(voice.router, prefix="/api/v1")
 app.include_router(weather.router, prefix="/api/v1")
