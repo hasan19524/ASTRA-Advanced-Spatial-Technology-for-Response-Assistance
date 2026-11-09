@@ -580,6 +580,7 @@ export default function IncidentDetailPage(props: PageProps<"/incidents/[id]">) 
         >
           <TaskList
             tasks={tasks}
+            canAssign={canAssign}
             canUpdate={canUpdate}
             departments={[...DEPARTMENTS]}
             usersByDept={usersByDept}

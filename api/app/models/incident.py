@@ -103,6 +103,8 @@ class IncidentReport(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     # AD-8: photo lives in api/uploads/, DB stores the path
     media_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Phase 3: cached image evidence analysis (JSON string), nullable
+    evidence_analysis: Mapped[str | None] = mapped_column(Text, nullable=True)
     # TEXT | PHOTO | VOICE (voice slot lands with Day 7 voice work)
     source: Mapped[str] = mapped_column(String(16), nullable=False, default="TEXT")
     sensitivity: Mapped[str] = mapped_column(

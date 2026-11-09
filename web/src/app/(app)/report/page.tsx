@@ -15,6 +15,10 @@ import { useAlerts } from "@/stores/alerts";
 import { CATEGORIES } from "@/lib/constants";
 import { request } from "@/api/client";
 import { useAuthSession } from "@/hooks/useAuth";
+import {
+  EvidenceAnalysisCard,
+  type EvidenceAnalysisResult,
+} from "@/components/evidence/EvidenceAnalysisCard";
 import { useVoiceLanguage } from "@/stores/voiceLanguage";
 
 const MAX_BYTES = 5 * 1024 * 1024; // mirror backend MAX_UPLOAD_BYTES (AD-8)
@@ -51,6 +55,11 @@ export default function ReportPage() {
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoErr, setPhotoErr] = useState<string | null>(null);
+
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<EvidenceAnalysisResult | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [analysisUnavailable, setAnalysisUnavailable] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,6 +117,9 @@ export default function ReportPage() {
     setPhoto(null);
     setPhotoPreview(null);
     setPhotoErr(null);
+    setAnalysisResult(null);
+    setAnalysisError(null);
+    setAnalysisUnavailable(false);
     if (photoInput.current) photoInput.current.value = "";
   }, []);
 
@@ -126,6 +138,44 @@ export default function ReportPage() {
     setPhoto(file);
     setPhotoPreview(URL.createObjectURL(file));
   }, []);
+
+  const analyzeEvidence = useCallback(async () => {
+    if (!photo) return;
+    setAnalyzing(true);
+    setAnalysisError(null);
+    setAnalysisResult(null);
+    setAnalysisUnavailable(false);
+    try {
+      const form = new FormData();
+      form.append("image", photo);
+      form.append(
+        "incident_description",
+        description.trim().length >= 10 ? description.trim() : title.trim() || "incident",
+      );
+      form.append("category", category || "Hazard/Other");
+      const res = await request<EvidenceAnalysisResult>("/api/v1/evidence/analyze", {
+        method: "POST",
+        body: form,
+        token,
+      });
+      setAnalysisResult(res);
+      if (
+        res.explanation &&
+        res.explanation.toLowerCase().includes("unavailable")
+      ) {
+        setAnalysisUnavailable(true);
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Evidence analysis failed.";
+      if (msg.toLowerCase().includes("unavailable") || msg.toLowerCase().includes("503")) {
+        setAnalysisUnavailable(true);
+      } else {
+        setAnalysisError(msg);
+      }
+    } finally {
+      setAnalyzing(false);
+    }
+  }, [photo, description, title, category, token]);
 
   const sendToSTT = useCallback(async (blob: Blob) => {
     const form = new FormData();
@@ -416,6 +466,24 @@ export default function ReportPage() {
                 />
               </div>
             )}
+            {photo && (
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={analyzeEvidence}
+                  disabled={analyzing || submitting}
+                >
+                  {analyzing ? "Analyzing…" : "Analyze evidence"}
+                </Button>
+              </div>
+            )}
+            <EvidenceAnalysisCard
+              loading={analyzing}
+              error={analysisError}
+              result={analysisResult}
+              unavailable={analysisUnavailable}
+            />
             {photoErr && (
               <p className="text-[10px] text-[var(--danger)]">{photoErr}</p>
             )}

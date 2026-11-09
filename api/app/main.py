@@ -18,6 +18,7 @@ from app.routers import (
     audit,
     auth,
     coordination,
+    evidence,
     geocode,
     incidents,
     map_ws,
@@ -137,6 +138,7 @@ app.add_middleware(AuditMiddleware)
 
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(incidents.router, prefix="/api/v1")
+app.include_router(evidence.router, prefix="/api/v1")
 app.include_router(tasks.router, prefix="/api/v1")
 app.include_router(org.router, prefix="/api/v1")
 app.include_router(poll.router, prefix="/api/v1")

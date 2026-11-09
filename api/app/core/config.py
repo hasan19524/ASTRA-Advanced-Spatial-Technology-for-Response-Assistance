@@ -61,6 +61,15 @@ class Settings(BaseSettings):
     gnani_api_key: str = ""
     gnani_base_url: str = "https://api.vachana.ai"
 
+    # --- Vision / image evidence (Phase 3) ---
+    # Hosted-API-based image understanding. Provider is selected by
+    # VISION_PROVIDER ("openai" default, "gemini" stub). Keys live in .env.
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.0-flash"
+    vision_provider: str = "openai"
+    openai_api_key: str = ""
+    openai_vision_model: str = "gpt-4o"
+
     # --- Demo affordance (Day 4, audit S1) — NEVER enable outside the demo ---
     demo_mode: bool = False  # DEMO_MODE=true enables POST /auth/demo-login
     demo_password: str = "astra-demo-2026"  # server-side only; never sent to clients
