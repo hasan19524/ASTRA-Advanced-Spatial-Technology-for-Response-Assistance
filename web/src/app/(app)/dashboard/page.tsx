@@ -155,7 +155,11 @@ export default function DashboardPage() {
       {/* ---- KPI row (real stats; never fixtures) ---- */}
       {stats.error ? (
         <UnavailableState
-          reason={`Dashboard stats could not be loaded: ${stats.error}. The backend stats endpoint may not be built yet.`}
+          reason={
+            stats.error.toLowerCase().includes("missing permission")
+              ? "Overview stats are scoped by role, and this role is not permitted to read them. The counts below are not shown rather than estimated."
+              : `Dashboard stats could not be loaded: ${stats.error}. The endpoint could not be reached, so no numbers are shown rather than estimated.`
+          }
         />
       ) : stats.data ? (
         <>

@@ -47,11 +47,38 @@ def _headers() -> dict:
     return {"X-API-Key-ID": settings.gnani_api_key}
 
 
+def _ffmpeg_bin() -> str:
+    """Locate an ffmpeg binary: PATH first, then the bundled static binary.
+
+    WebM/Opus -> WAV needs ffmpeg at RUNTIME, not build time. Containers do
+    not ship ffmpeg on PATH, and an `apt-get install ffmpeg` in the image is a
+    network-dependent step that can (and does) fail mid-build — which leaves
+    every browser voice report failing with a Gnani 400 while a developer's
+    machine works, because the fallback then sends the raw WebM bytes under a
+    .wav filename. `imageio-ffmpeg` pins a static binary on the wheel, so the
+    binary is always present.
+    """
+    import shutil
+
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
+    try:
+        import imageio_ffmpeg
+
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception as exc:  # no binary anywhere: caller degrades honestly
+        raise RuntimeError(
+            "no ffmpeg binary available for the WebM -> WAV transcode"
+        ) from exc
+
+
 def _transcode_webm_to_wav(audio_bytes: bytes) -> bytes:
     """Transcode WebM/Opus to 16 kHz mono 16-bit PCM WAV using ffmpeg.
 
-    ffmpeg is a system dependency (already present on the host and in the
-    build image); no new Python package is introduced.
+    ffmpeg is located by PATH on a developer machine and from the
+    imageio-ffmpeg wheel in a container — no apt install, no network at build
+    time, and no new Python package doing the decoding for us.
     """
     with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as webm_file:
         webm_file.write(audio_bytes)
@@ -60,7 +87,7 @@ def _transcode_webm_to_wav(audio_bytes: bytes) -> bytes:
     try:
         subprocess.run(
             [
-                "ffmpeg",
+                _ffmpeg_bin(),
                 "-v",
                 "error",
                 "-i",
@@ -76,7 +103,7 @@ def _transcode_webm_to_wav(audio_bytes: bytes) -> bytes:
             ],
             check=True,
             capture_output=True,
-            timeout=30,
+            timeout=60,
         )
         with open(wav_path, "rb") as f:
             return f.read()

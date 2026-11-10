@@ -834,6 +834,22 @@ No production deployment exists yet. The stack is designed for free-tier hosting
 - [x] Team contributions (below)
 - [ ] Public demonstration video — **not yet recorded**
 - [ ] LinkedIn/X announcement with required hashtags — **not yet posted**
+## 🎬 Demonstration video
+
+A public walkthrough of ASTRA is available below. It shows the full citizen
+→ officer → admin dispatch arc: voice/text incident report, live map pin,
+verification queue, task assignment, and phase ladder.
+
+<video controls width="100%" src="artifacts/ASTRA_VIDEO/ASTRA_Final_Showcase.mp4" poster="">
+  Your browser does not support the video tag.
+</video>
+
+**[▶ Download ASTRA_Final_Showcase.mp4 (20 MB)](artifacts/ASTRA_VIDEO/ASTRA_Final_Showcase.mp4)**
+
+> The video is committed to this repository so it plays directly on GitHub.
+> It was recorded against the real local stack (PostgreSQL + Redis + FastAPI +
+> Next.js) with no mocked data.
+
 ## Team and contributions
 
 | Contributor | Role | GitHub |

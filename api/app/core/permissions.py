@@ -54,6 +54,13 @@ CITIZEN_PERMS = {
     "assistant.use",
     "navigation.use",
     "simulation.public",
+    # Citizens read PUBLIC-SAFE aggregates only: stats_service.overview() scopes
+    # every count by role and zeroes `hidden` / `restricted` for anyone without
+    # incident.view_restricted (PL-10). Without this permission the citizen
+    # dashboard's /stats/overview call is a permanent 403, which rendered as
+    # "the backend stats endpoint may not be built yet" — a false claim about
+    # working code.
+    "stats.view",
 }
 
 ROLE_PERMISSIONS: dict[Role, set[str]] = {

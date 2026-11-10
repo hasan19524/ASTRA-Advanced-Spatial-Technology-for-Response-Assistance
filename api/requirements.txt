@@ -16,3 +16,8 @@ boto3==1.43.126
 
 # Image evidence validation (Pillow — deterministic quality checks, no local ML model).
 Pillow==11.3.0
+
+# Voice STT needs a WebM -> WAV transcode (browsers record WebM/Opus; Gnani
+# accepts raw PCM only). imageio-ffmpeg ships a static ffmpeg binary, so the
+# container has ffmpeg without an apt install that could fail mid-build.
+imageio-ffmpeg==0.6.0

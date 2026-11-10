@@ -36,6 +36,19 @@ export function TaskList({
   const [creating, setCreating] = useState(false);
 
   if (tasks.length === 0) {
+    // The create form must render here too — previously `creating` was set but
+    // this early return never rendered it, so the "Create task" button did
+    // nothing on an incident with zero tasks.
+    if (creating && canAssign) {
+      return (
+        <TaskCreateForm
+          departments={departments}
+          usersByDept={usersByDept}
+          onCreate={onCreate}
+          disabled={false}
+        />
+      );
+    }
     return (
       <EmptyState
         title={canAssign || canUpdate ? "No tasks yet" : "Tasks not available"}

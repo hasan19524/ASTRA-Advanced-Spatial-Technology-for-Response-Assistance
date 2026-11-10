@@ -73,6 +73,9 @@ class Settings(BaseSettings):
     vision_provider: str = "openai"
     openai_api_key: str = ""
     openai_vision_model: str = "gpt-4o"
+    # Vision on NVIDIA NIM (OpenAI-compatible dialect, free-tier credits).
+    # Only vision-capable models work here; text-only models reject image_url.
+    nvidia_vision_model: str = "nvidia/nemotron-3.5-super-vl-120b-a12b"
 
     # --- Demo affordance (Day 4, audit S1) — NEVER enable outside the demo ---
     demo_mode: bool = False  # DEMO_MODE=true enables POST /auth/demo-login

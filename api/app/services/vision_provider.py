@@ -1,8 +1,19 @@
 """Hosted vision providers (Phase 3).
 
-Only hosted APIs — no local models. OpenAI (gpt-4o) is the wired default;
-Gemini is provided as a documented stub so a free Google AI Studio key can be
-plugged in later without touching the orchestrator.
+Only hosted APIs — no local models. Provider is chosen by VISION_PROVIDER:
+
+  * "openai"  — gpt-4o via api.openai.com (the original default)
+  * "nvidia"  — a vision-capable model on NVIDIA NIM (integrate.api.nvidia.com).
+                NIM speaks the OpenAI chat-completions dialect, so this reuses
+                OpenAIVisionProvider with a different base URL + key. The
+                default model is a reasoning VL model, which is why the
+                max_tokens budget is generous: the reasoning tokens are spent
+                before the JSON answer lands in `content`.
+  * "gemini"  — documented stub for a free Google AI Studio key (see below).
+
+The orchestrator (evidence_verification) is provider-agnostic: any of these
+can be swapped without touching it, and a provider failure degrades to an
+honest UNAVAILABLE state.
 """
 
 from __future__ import annotations
@@ -18,6 +29,11 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 OPENAI_BASE_URL = "https://api.openai.com/v1"
+
+# A reasoning VL model spends tokens thinking before it answers, so the JSON
+# reply needs headroom. 600 truncated the answer mid-sentence; 1500 fits the
+# reasoning plus the ~200-token JSON object.
+VISION_MAX_TOKENS = 1500
 
 
 class VisionProviderInterface(ABC):
@@ -100,7 +116,13 @@ class OpenAIVisionProvider(VisionProviderInterface):
                 },
             ],
             "temperature": 0,
-            "max_tokens": 600,
+            "max_tokens": VISION_MAX_TOKENS,
+            # JSON mode: the reply must be a parseable JSON object. Supported
+            # by OpenAI chat models and by NVIDIA NIM; without it a small
+            # model will occasionally emit an unquoted string inside the
+            # object and the orchestrator would have to throw the whole
+            # analysis away.
+            "response_format": {"type": "json_object"},
         }
 
         client = self._client
@@ -162,6 +184,15 @@ class GeminiVisionProvider(VisionProviderInterface):
 
 def get_vision_provider() -> VisionProviderInterface:
     name = (settings.vision_provider or "openai").lower()
+    if name == "nvidia":
+        # NVIDIA NIM speaks the OpenAI chat-completions dialect, so the same
+        # provider class is reused with the NIM base URL and key. No key, no
+        # call — the orchestrator degrades honestly instead.
+        return OpenAIVisionProvider(
+            api_key=settings.nvidia_api_key or None,
+            model=settings.nvidia_vision_model,
+            base_url=settings.nvidia_base_url,
+        )
     if name == "gemini":
         return GeminiVisionProvider()
     return OpenAIVisionProvider()
